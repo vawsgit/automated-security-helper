@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+jspm_packages/
+web_modules/
+
+# Build/Runtime
+dist/
+build/
+.next/
+.nuxt/
+.cache/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment
+.env
+.env.local
+
+# IDE/Tools
+.vscode/
+.idea/
+.DS_Store
