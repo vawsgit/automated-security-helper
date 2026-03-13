@@ -1,6 +1,6 @@
 {
   "name": "ash-workbench",
-  "displayName": "ash-workbench",
+  "displayName": "ASH Workbench",
   "description": "Automated Security Helper Workbench",
   "version": "0.0.1",
   "engines": {
@@ -9,32 +9,86 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onView:ashWorkbench.mainView"
+  ],
   "main": "./out/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "ashWorkbench",
+          "title": "ASH Workbench",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "ashWorkbench": [
+        {
+          "type": "webview",
+          "id": "ashWorkbench.mainView",
+          "name": "Workbench"
+        },
+        {
+          "id": "ashWorkbench.scanHistory",
+          "name": "Scan History"
+        }
+      ]
+    },
     "commands": [
       {
-        "command": "ash-workbench.helloWorld",
-        "title": "Hello World"
+        "command": "ashWorkbench.startScan",
+        "title": "ASH: Start Scan"
+      },
+      {
+        "command": "ashWorkbench.openWorkbench",
+        "title": "ASH: Open Workbench"
+      },
+      {
+        "command": "ashWorkbench.cancelScan",
+        "title": "ASH: Cancel Scan"
       }
-    ]
+    ],
+    "menus": {
+      "view/item/context": [
+        {
+          "command": "ashWorkbench.openWorkbench",
+          "when": "view == ashWorkbench.scanHistory",
+          "group": "navigation"
+        }
+      ]
+    }
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
+    "copy:webview": "cp -r ../webview/dist ./webview-dist",
+    "build:webview": "cd ../webview && npm run build && cd ../vsix && npm run copy:webview",
+    "vscode:prepublish": "npm run build",
+    "build": "npm run build:webview && npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src",
-    "test": "vscode-test"
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\"",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "mocha",
+    "test:integration": "vscode-test"
   },
   "devDependencies": {
-    "@types/vscode": "^1.110.0",
+    "@electric-sql/pglite": "^0.2.17",
     "@types/mocha": "^10.0.10",
     "@types/node": "22.x",
-    "typescript-eslint": "^8.56.1",
-    "eslint": "^9.39.3",
-    "typescript": "^5.9.3",
+    "@types/sinon": "^17.0.0",
+    "@types/vscode": "^1.110.0",
     "@vscode/test-cli": "^0.0.12",
-    "@vscode/test-electron": "^2.5.2"
+    "@vscode/test-electron": "^2.5.2",
+    "eslint": "^9.39.3",
+    "eslint-config-prettier": "^10.0.0",
+    "mocha": "^11.0.0",
+    "prettier": "^3.5.0",
+    "sinon": "^19.0.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.56.1"
   }
 }

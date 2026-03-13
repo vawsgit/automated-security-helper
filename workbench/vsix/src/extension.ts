@@ -1,26 +1,47 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
+import { registerAllCommands } from './commands/index';
+import { ScanTreeProvider } from './providers/scanTreeProvider';
+import { SidebarWebviewProvider } from './providers/sidebarWebviewProvider';
+import { FindingsPanelManager } from './providers/findingsPanelManager';
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
+  console.log('[ASH] Activating ASH Workbench extension');
 
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "ash-workbench" is now active!');
+  // Register commands
+  registerAllCommands(context);
 
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
-	const disposable = vscode.commands.registerCommand('ash-workbench.helloWorld', () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from ash-workbench!');
-	});
+  // Tree view
+  const scanTreeProvider = new ScanTreeProvider();
+  context.subscriptions.push(
+    vscode.window.registerTreeDataProvider('ashWorkbench.scanHistory', scanTreeProvider),
+  );
 
-	context.subscriptions.push(disposable);
+  // Findings editor panel manager
+  const findingsPanelManager = new FindingsPanelManager(context.extensionUri);
+
+  // Sidebar webview provider
+  const sidebarProvider = new SidebarWebviewProvider(context.extensionUri);
+  sidebarProvider.setFindingsPanelManager(findingsPanelManager);
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(SidebarWebviewProvider.viewType, sidebarProvider),
+  );
+
+  // Select scan command — wired to tree item clicks and opens the findings panel
+  context.subscriptions.push(
+    vscode.commands.registerCommand('ashWorkbench.selectScan', (scanId: string) => {
+      scanTreeProvider.selectScan(scanId);
+      findingsPanelManager.showFindings(scanId);
+    }),
+  );
+
+  // Open workbench command — opens findings for the first completed scan
+  context.subscriptions.push(
+    vscode.commands.registerCommand('ashWorkbench.openWorkbench', () => {
+      findingsPanelManager.showFindings('scan-001');
+    }),
+  );
+
+  console.log('[ASH] ASH Workbench extension activated');
 }
 
-// This method is called when your extension is deactivated
 export function deactivate() {}

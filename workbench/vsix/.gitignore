@@ -1,14 +1,15 @@
 # Dependencies
 node_modules/
-jspm_packages/
-web_modules/
 
-# Build/Runtime
-dist/
-build/
-.next/
-.nuxt/
-.cache/
+# Build output
+out/
+webview-dist/
+
+# VS Code test runtime
+.vscode-test/
+
+# Packaged extension
+*.vsix
 
 # Logs
 *.log
@@ -18,7 +19,5 @@ npm-debug.log*
 .env
 .env.local
 
-# IDE/Tools
-.vscode/
-.idea/
+# OS
 .DS_Store
