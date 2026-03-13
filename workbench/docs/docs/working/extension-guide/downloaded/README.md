@@ -38,6 +38,7 @@ Comprehensive guidance downloaded from the official VS Code documentation for us
 | [Test Extension](./guide-testing.md) | Test discovery, execution, coverage reporting |
 | [Custom Data Extension](./guide-custom-data-extension.md) | Declarative HTML/CSS language extensions |
 | [Telemetry](./guide-telemetry.md) | User-respecting telemetry collection |
+| [Diagnostics](./guide-diagnostics.md) | DiagnosticCollection, severity, code actions (fetched separately) |
 
 ## UX Guidelines
 

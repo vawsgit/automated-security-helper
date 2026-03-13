@@ -59,7 +59,9 @@ These map directly to ASH Workbench features. Include all implementation pattern
 | Sidebars | `ux-sidebars.md` | 49 | Primary sidebar layout |
 | Context Menus | `ux-context-menus.md` | 88 | Right-click on findings, scans |
 | Task Provider | `guide-task-provider.md` | 105 | ASH scan execution |
-| **Subtotal** | | **~1,308** | |
+| Panel | `ux-panel.md` | 63 | Scan output, results display |
+| Diagnostics | `guide-diagnostics.md` (fetched) | ~120 | Inline findings in editors, quick fixes |
+| **Subtotal** | | **~1,491** | |
 
 ### Tier 2: SUPPLEMENTAL — Include condensed (key facts only, no code)
 
@@ -71,12 +73,11 @@ These are relevant for awareness but don't need full implementation guides in th
 | Workspace Trust | `guide-workspace-trust.md` | 78 | Security extension declaration |
 | Telemetry | `guide-telemetry.md` | 69 | Usage tracking (future) |
 | AI Extensions | `guide-ai-extensions.md` | 69 | Future AI-assisted triage |
-| Panel | `ux-panel.md` | 63 | May use for output/results |
 | Editor Actions | `ux-editor-actions.md` | 50 | May annotate files with findings |
 | Virtual Documents | `guide-virtual-documents.md` | 110 | May display scan reports |
 | Testing | `guide-testing.md` | 116 | Testing infrastructure |
 | Extension Capabilities | `extension-capabilities-overview.md` | 70 | Critical restrictions |
-| **Subtotal** | | **~711** | Condenses to ~100 lines |
+| **Subtotal** | | **~648** | Condenses to ~90 lines |
 
 ### Tier 3: EXCLUDE — Not relevant to ASH Workbench
 
@@ -103,13 +104,13 @@ These are domain-specific guides for extension types ASH will never be.
 
 | Source | Raw lines | Compiled estimate |
 |--------|----------|-------------------|
-| Tier 1 (full) | 1,308 | ~900 lines (merge overlaps, tighten prose) |
-| Tier 2 (condensed) | 711 | ~100 lines (key facts only) |
+| Tier 1 (full) | 1,491 | ~1,000 lines (merge overlaps, tighten prose) |
+| Tier 2 (condensed) | 648 | ~90 lines (key facts only) |
 | Tier 3 (excluded) | 1,460 | 0 lines |
 | New structural content | — | ~80 lines (preamble, section headers, cross-refs) |
-| **Total** | **3,421** | **~1,080 lines (~30KB)** |
+| **Total** | **3,599** | **~1,170 lines (~33KB)** |
 
-This is a ~68% reduction while preserving all actionable implementation guidance.
+This is a ~67% reduction while preserving all actionable implementation guidance.
 
 ## Detailed Findings: Content Quality Assessment
 
@@ -123,13 +124,13 @@ This is a ~68% reduction while preserving all actionable implementation guidance
 
 ### What the downloaded docs lack
 
-1. **No `Diagnostics` API coverage.** ASH Workbench will almost certainly need the `vscode.languages.createDiagnosticCollection()` API to show findings as squiggly underlines in editors. This is a critical gap. The capabilities overview mentions diagnostics under "Programmatic Language Features" but no guide was downloaded for it.
+1. ~~**No `Diagnostics` API coverage.**~~ **RESOLVED** — Fetched and saved as `guide-diagnostics.md`. Now a Tier 1 topic.
 
-2. **No `OutputChannel` coverage.** Scan output logging will likely use `vscode.window.createOutputChannel()`. This is a basic API but no guide covers it.
+2. **No `OutputChannel` coverage.** Scan output logging will likely use `vscode.window.createOutputChannel()`. This is a basic API but no guide covers it. Will be included in API Quick Reference.
 
-3. **No `FileSystemWatcher` coverage.** Monitoring scan result files or workspace changes may need this API.
+3. **No `FileSystemWatcher` coverage.** Monitoring scan result files or workspace changes may need this API. Will be included in API Quick Reference.
 
-4. **No `Decoration` API coverage.** File decorations (badges on files in explorer showing finding counts) use `FileDecorationProvider`. Not covered.
+4. **No `Decoration` API coverage.** File decorations (badges on files in explorer showing finding counts) use `FileDecorationProvider`. Not covered. Will be included in API Quick Reference.
 
 5. **Progress API is fragmented.** Progress reporting is scattered across ux-notifications (notification progress), ux-status-bar (status bar progress), and ux-views (view progress). These should be unified in a single "Progress Patterns" section.
 
@@ -242,7 +243,14 @@ The compiled document should be organized by **what the developer is trying to d
    - when clauses for contextual display
    ### UX: Only show when contextually relevant. Group similar actions.
 
-## 12. Task Provider
+## 12. Panel
+   [From: ux-panel.md]
+   - viewsContainers.panel contribution point
+   - Panel toolbar behavior (single vs. multiple views)
+   - When to use panel vs. sidebar
+   ### UX: For views needing horizontal space. Not for always-visible content. Resize properly.
+
+## 13. Task Provider
    [From: guide-task-provider.md]
    - taskDefinitions contribution point
    - provideTasks / resolveTask
@@ -250,20 +258,27 @@ The compiled document should be organized by **what the developer is trying to d
    - Task object construction
    ### UX: Define when-clause for execution support.
 
-## 13. Supplemental Reference
+## 14. Diagnostics & Code Actions
+   [From: guide-diagnostics.md (fetched)]
+   - createDiagnosticCollection() pattern
+   - DiagnosticSeverity levels (Error, Warning, Information, Hint)
+   - Diagnostic properties (source, code, relatedInformation, tags)
+   - Managing diagnostics (set, delete, clear per URI)
+   - CodeActionProvider for quick fixes
+   - No package.json contribution needed — purely programmatic
+
+## 15. Supplemental Reference
    Brief entries for features that may be needed later:
    - Walkthroughs (onboarding checklists, SVG theming)
    - Workspace Trust (untrustedWorkspaces capability)
    - Telemetry (@vscode/extension-telemetry, consent APIs)
    - AI Chat Participants (ChatRequestHandler, slash commands)
-   - Panel views (viewsContainers.panel)
    - Editor Actions (editor/title menu)
    - Virtual Documents (TextDocumentContentProvider)
    - Testing API (TestController, TestItem, run profiles)
 
-## 14. API Quick Reference
-   Table of commonly needed APIs not covered in guides:
-   - Diagnostics: vscode.languages.createDiagnosticCollection()
+## 16. API Quick Reference
+   Table of commonly needed APIs not covered in depth above:
    - Output Channel: vscode.window.createOutputChannel()
    - File Decorations: vscode.window.registerFileDecorationProvider()
    - File System Watcher: vscode.workspace.createFileSystemWatcher()
@@ -287,7 +302,7 @@ For each surface area where an Extension Guide and UX Guideline overlap:
 - **Keep all TypeScript examples** from Tier 1 guides — they're the primary value
 - **Keep all `package.json` examples** — these prevent manifest errors
 - **Remove duplicate patterns** — if tree view and webview both show command registration, keep it once in the Commands section
-- **Normalize example names** — replace "cowsay", "catScratch", "nodeDependencies" with ASH-relevant placeholders like "ashWorkbench.runScan", "securityFindings" to make the reference immediately applicable
+- **Keep example names generic** — preserve original VS Code documentation names ("cowsay", "catScratch", "nodeDependencies") or use neutral placeholders like "myExtension". This keeps the reference applicable to any VS Code extension, not just ASH.
 
 ### Prose compression rules
 
@@ -299,9 +314,9 @@ For each surface area where an Extension Guide and UX Guideline overlap:
 
 ## Issues and Risks
 
-### Gap: Diagnostics API
+### ~~Gap: Diagnostics API~~ RESOLVED
 
-ASH Workbench will almost certainly need the `vscode.languages.createDiagnosticCollection()` API to show security findings as inline editor markers (squiggly underlines). This is the standard VS Code pattern for linting/analysis tools, and it's not covered in any downloaded guide. **The compiled document must include a hand-written Diagnostics section** or the API reference should be fetched separately.
+Diagnostics API has been fetched and saved to `downloaded/guide-diagnostics.md`. Covers `DiagnosticCollection`, `DiagnosticSeverity`, full implementation pattern, `CodeActionProvider` for quick fixes, and diagnostic properties (`source`, `code`, `relatedInformation`, `tags`). This is now a Tier 1 topic with ~120 lines of implementation-ready content.
 
 ### Gap: Output Channel
 
@@ -317,12 +332,12 @@ The downloaded content reflects VS Code documentation as of March 2026. The comp
 
 ### Risk: Token budget vs. completeness trade-off
 
-At ~1,080 lines (~30KB), the compiled document is moderate for AI context inclusion. If it needs to fit in a CLAUDE.md or a skill prompt, it may need further compression. Two approaches:
+Two documents address this:
 
-1. **Full reference** (~1,080 lines) — loaded via file read when needed
-2. **Essential patterns** (~400 lines) — could fit in a skill file's context section
+1. **Full reference** (~1,170 lines, ~33KB) at `docs/docs/developer-docs/reference/vscode-extension-reference.md` — complete, included in production doc builds, loaded when deep detail is needed
+2. **Cheat sheet** (~400 lines, ~12KB) at `docs/docs/working/extension-guide/vscode-extension-cheat-sheet.md` — compressed working doc for quick context loading, excluded from production builds
 
-Recommend producing the full reference and a separate condensed "cheat sheet" if needed.
+The cheat sheet is the default for AI context; the full reference is read on-demand for specific topics.
 
 ## Key Takeaways
 
@@ -334,39 +349,47 @@ Recommend producing the full reference and a separate condensed "cheat sheet" if
 
 4. **Code examples and `package.json` patterns are the highest-value content** — these are what prevent AI from generating incorrect extension code. Preserve them all from Tier 1 guides.
 
-5. **Four API gaps must be filled:** Diagnostics, OutputChannel, FileDecorationProvider, and FileSystemWatcher. These are simple APIs but essential for a security scanning extension. Brief hand-written sections should be added.
+5. **Three remaining API gaps to fill in the API Quick Reference:** OutputChannel, FileDecorationProvider, and FileSystemWatcher. The Diagnostics gap has been resolved with a full fetched guide (now Tier 1).
 
-6. **The target document is ~1,080 lines (~30KB)** — a 68% reduction from the raw downloaded material while retaining all actionable implementation guidance.
+6. **Two output documents:** Full reference (~1,170 lines, ~33KB) at `developer-docs/reference/vscode-extension-reference.md` for permanent developer docs, plus a cheat sheet (~400 lines, ~12KB) at `working/extension-guide/vscode-extension-cheat-sheet.md` for quick AI context loading. Together they represent a ~67% reduction from raw material.
 
 7. **UX conventions should be embedded inline** with their corresponding technical sections, not in a separate "UX Guidelines" area. This ensures AI reads the "don't" right next to the code it's writing.
 
-## Outstanding Questions
+## Resolved Questions
 
-1. **Should the compiled document normalize example code to use ASH-specific names?** (e.g., `ashWorkbench.scanView` instead of `nodeDependencies`) — this would make it immediately applicable but diverges from source material.
+1. **Should the compiled document normalize example code to use ASH-specific names?** No. Keep examples generic so the reference applies to any VS Code extension development, not just ASH. Use the original example names from the VS Code docs.
 
-2. **Should the compiled doc be a working doc or go into CLAUDE.md as persistent guidance?** The size (~30KB) is too large for CLAUDE.md but could be referenced as a skill context file or loaded on-demand.
+2. **Should the compiled doc be a working doc or go into CLAUDE.md as persistent guidance?** Two outputs: the full reference goes to `docs/docs/developer-docs/reference/vscode-extension-reference.md` (permanent developer docs), and a condensed cheat sheet goes to `docs/docs/working/extension-guide/vscode-extension-cheat-sheet.md` (working doc for quick context loading). Both are read into context as needed.
 
-3. **Should we fetch the Diagnostics API reference from VS Code docs?** This is the biggest content gap for a security scanner extension.
+3. **Should we fetch the Diagnostics API reference from VS Code docs?** Yes — done. Fetched and saved to `downloaded/guide-diagnostics.md`. The gap is now filled with full implementation patterns including `DiagnosticCollection`, severity levels, `CodeActionProvider` for quick fixes, and `package.json` patterns.
 
-4. **Is the Panel area (bottom views) needed for ASH?** The user stories don't clearly call for it, but a "Scan Output" panel view is a natural fit. This would promote the Panel guide from Tier 2 to Tier 1.
+4. **Is the Panel area (bottom views) needed for ASH?** Yes. A "Scan Output" panel view is a natural fit. Panel is promoted from Tier 2 to Tier 1 in the compilation plan.
 
 ## Recommended Implementation Plan
 
-### Phase 1: Compile the reference document
-1. Create the target file at a chosen location (e.g., `extension-guide/vscode-extension-reference.md`)
-2. Write the preamble (constraints, lifecycle, activation) from the capabilities overview
-3. For each Tier 1 topic: merge the Extension Guide and UX Guideline content, compress prose, preserve all code examples and `package.json` patterns
-4. Write the Tier 2 supplemental section (condensed entries, 2-5 lines each)
-5. Write the API quick reference section covering the four identified gaps (Diagnostics, OutputChannel, FileDecorationProvider, FileSystemWatcher)
+### Phase 1: Compile the full reference document
+1. Create `docs/docs/developer-docs/reference/vscode-extension-reference.md` (permanent developer docs)
+2. Add `_category_.json` to `docs/docs/developer-docs/reference/` if the directory is new
+3. Write the preamble (constraints, lifecycle, activation) from the capabilities overview
+4. For each Tier 1 topic: merge the Extension Guide and UX Guideline content, compress prose, preserve all code examples and `package.json` patterns
+5. Write the Tier 2 supplemental section (condensed entries, 2-5 lines each)
+6. Write the API quick reference section covering the remaining gaps (OutputChannel, FileDecorationProvider, FileSystemWatcher)
 
-### Phase 2: Review and refine
-1. Human reviews the compiled document for accuracy and completeness
+### Phase 2: Compile the cheat sheet
+1. Create `docs/docs/working/extension-guide/vscode-extension-cheat-sheet.md` (working doc)
+2. Extract the essential patterns from each Tier 1 section: one code example + key UX rules per surface area
+3. Target ~400 lines — enough for quick context loading without reading the full reference
+4. Include a pointer to the full reference for deeper detail
+5. Focus on `package.json` patterns and the most common API calls — the things AI gets wrong most often
+
+### Phase 3: Review and refine
+1. Human reviews both documents for accuracy and completeness
 2. Verify all `package.json` contribution patterns are syntactically correct
 3. Verify all TypeScript examples compile conceptually (no missing imports, correct API signatures)
-4. Assess whether example code should use ASH-specific names
+4. Confirm generic example names are clear and instructive
 
-### Phase 3: Integrate into development workflow
-1. Decide on delivery mechanism (skill context, on-demand file read, or CLAUDE.md reference)
-2. If using as skill context: create a skill that loads the reference when building extension features
-3. If on-demand: document the file path in CLAUDE.md so AI knows where to find it
-4. Optionally create a condensed ~400-line "cheat sheet" version for tighter context windows
+### Phase 4: Integrate into development workflow
+1. Document both file paths in CLAUDE.md so AI knows where to find them
+2. For feature implementation sessions: read the cheat sheet first; read the full reference when deeper detail is needed
+3. The full reference in `developer-docs/reference/` is included in production doc builds and serves as a lasting contributor resource
+4. The cheat sheet in `working/` is excluded from production builds — it's an AI working aid only
