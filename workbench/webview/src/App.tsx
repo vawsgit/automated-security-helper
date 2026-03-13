@@ -3,13 +3,14 @@ import { postMessage, useMessages } from './hooks/useVSCodeAPI';
 import { SidebarDashboard } from './components/SidebarDashboard';
 import { FindingList } from './components/FindingList';
 import { FindingDetail } from './components/FindingDetail';
+import SinkPage from './pages/sink/SinkPage';
 import type { ExtToWebviewMessage } from './types/messages';
 import type { ScanSummary, FindingRow, DispositionSummary } from './types/types';
 
 type ViewState = 'loading' | 'findingList' | 'findingDetail';
 
 interface AppState {
-  context: 'sidebar' | 'editorPanel' | 'unknown';
+  context: 'sidebar' | 'editorPanel' | 'sink' | 'unknown';
   scanId: string | undefined;
   scans: ScanSummary[];
   summary: DispositionSummary;
@@ -41,6 +42,9 @@ function reducer(state: AppState, action: AppAction): AppState {
         case 'init':
           if (msg.payload.context === 'sidebar') {
             return { ...state, context: 'sidebar' };
+          }
+          if (msg.payload.context === 'sink') {
+            return { ...state, context: 'sink' };
           }
           return { ...state, context: 'editorPanel', scanId: msg.payload.scanId, view: 'loading' };
         case 'stateUpdate':
@@ -95,6 +99,10 @@ function App() {
 
   if (state.context === 'sidebar') {
     return <SidebarDashboard scans={state.scans} summary={state.summary} />;
+  }
+
+  if (state.context === 'sink') {
+    return <SinkPage />;
   }
 
   if (state.context === 'editorPanel') {

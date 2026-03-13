@@ -3,16 +3,22 @@ import { getWebviewHtml } from './webviewHtml';
 import type { WebviewToExtMessage } from '../models/messages';
 import { getMockScans, getMockSummary } from '../mock/data';
 import type { FindingsPanelManager } from './findingsPanelManager';
+import type { SinkPanelManager } from './sinkPanelManager';
 
 export class SidebarWebviewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'ashWorkbench.mainView';
   private view?: vscode.WebviewView;
   private findingsPanelManager?: FindingsPanelManager;
+  private sinkPanelManager?: SinkPanelManager;
 
   constructor(private readonly extensionUri: vscode.Uri) {}
 
   setFindingsPanelManager(manager: FindingsPanelManager): void {
     this.findingsPanelManager = manager;
+  }
+
+  setSinkPanelManager(manager: SinkPanelManager): void {
+    this.sinkPanelManager = manager;
   }
 
   resolveWebviewView(
@@ -50,6 +56,11 @@ export class SidebarWebviewProvider implements vscode.WebviewViewProvider {
       case 'openFindings':
         if (this.findingsPanelManager) {
           this.findingsPanelManager.showFindings(message.payload.scanId);
+        }
+        break;
+      case 'openSink':
+        if (this.sinkPanelManager) {
+          this.sinkPanelManager.show();
         }
         break;
     }

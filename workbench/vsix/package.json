@@ -48,6 +48,10 @@
       {
         "command": "ashWorkbench.cancelScan",
         "title": "ASH: Cancel Scan"
+      },
+      {
+        "command": "ashWorkbench.openKitchenSink",
+        "title": "ASH: Open Kitchen Sink"
       }
     ],
     "menus": {
@@ -61,7 +65,7 @@
     }
   },
   "scripts": {
-    "copy:webview": "cp -r ../webview/dist ./webview-dist",
+    "copy:webview": "rm -rf ./webview-dist && cp -r ../webview/dist ./webview-dist",
     "build:webview": "cd ../webview && npm run build && cd ../vsix && npm run copy:webview",
     "vscode:prepublish": "npm run build",
     "build": "npm run build:webview && npm run compile",

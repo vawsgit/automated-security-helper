@@ -4,6 +4,7 @@ import type { ScanSummary, FindingRow, DispositionSummary, Disposition } from '.
 export type ExtToWebviewMessage =
   | { type: 'init'; payload: { context: 'sidebar' } }
   | { type: 'init'; payload: { context: 'editorPanel'; scanId: string } }
+  | { type: 'init'; payload: { context: 'sink' } }
   | { type: 'stateUpdate'; payload: { scans: ScanSummary[]; summary: DispositionSummary } }
   | { type: 'findingsUpdate'; payload: { scanId: string; findings: FindingRow[] } }
   | { type: 'findingDetail'; payload: FindingRow }
@@ -17,4 +18,5 @@ export type WebviewToExtMessage =
   | { type: 'setDisposition'; payload: { findingId: string; disposition: Disposition } }
   | { type: 'navigateToCode'; payload: { filePath: string; startLine: number } }
   | { type: 'startScan' }
-  | { type: 'openFindings'; payload: { scanId: string } };
+  | { type: 'openFindings'; payload: { scanId: string } }
+  | { type: 'openSink' };
