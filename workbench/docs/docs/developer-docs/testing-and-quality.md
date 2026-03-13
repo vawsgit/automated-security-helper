@@ -23,7 +23,11 @@ npm run test          # Both: test:unit then test:integration
 
 ## Formatting
 
-**Prettier** handles all code formatting. Configuration is in `vsix/.prettierrc`:
+**Prettier** handles all code formatting. No ESLint formatting rules are used -- `eslint-config-prettier` disables them.
+
+### Configuration
+
+`vsix/.prettierrc`:
 
 | Setting | Value | Rationale |
 |---------|-------|-----------|
@@ -35,46 +39,126 @@ npm run test          # Both: test:unit then test:integration
 
 `vsix/.prettierignore` excludes `out/`, `node_modules/`, `*.vsix`, and `prisma/migrations/`.
 
-**Usage:** Run `npm run format` to auto-fix. CI and pre-commit checks should use `npm run format:check` (exits non-zero on unformatted files).
+### Workflow
+
+| Command | When to use |
+|---------|-------------|
+| `npm run format` | Auto-fix all files. Run after writing new code or before committing. |
+| `npm run format:check` | Verify without modifying. Used by CI and pre-commit checks (exits non-zero on unformatted files). |
+
+The `pretest` script runs `compile` then `lint` but does **not** run `format:check`. Run formatting checks separately or add them to your commit workflow.
+
+### Editor integration
+
+If using VS Code as your editor (likely), add to your workspace settings (`vsix/.vscode/settings.json`):
+
+```json
+{
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode"
+}
+```
+
+This auto-formats on every save, so `npm run format:check` never fails locally.
 
 ## Linting
 
-ESLint uses `typescript-eslint`'s `recommended` preset, which includes ~40 rules that catch real bugs (unused variables, unreachable code, unsafe `any` usage, etc.). Configuration is in `vsix/eslint.config.mjs`.
+ESLint uses `typescript-eslint`'s `recommended` preset (~40 rules) plus project-specific rules. Configuration is in `vsix/eslint.config.mjs`.
 
-### Rule severity
+### What the recommended preset catches
 
-All project-specific rules are set to `error` (not `warn`), so `npm run lint` fails on violations:
+These are the most impactful rules you'll encounter from `tseslint.configs.recommended`:
 
-- `curly` -- Require curly braces for all control statements
-- `eqeqeq` -- Require `===` and `!==`
-- `no-throw-literal` -- Only throw `Error` objects
+| Rule | What it catches | Fix |
+|------|-----------------|-----|
+| `@typescript-eslint/no-unused-vars` | Declared but never-read variables | Remove the variable, or prefix with `_` if it's a required parameter |
+| `@typescript-eslint/no-explicit-any` | Using `any` as a type annotation | Use a specific type, `unknown`, or a generic |
+| `@typescript-eslint/no-non-null-assertion` | The `!` postfix operator (`value!.prop`) | Use optional chaining (`value?.prop`) or a type guard |
+| `no-unreachable` | Code after `return`, `throw`, `break` | Remove dead code |
+| `@typescript-eslint/no-require-imports` | `require()` instead of `import` | Convert to ESM `import` syntax |
 
-The `@typescript-eslint/naming-convention` rule is `warn` only (import names must be camelCase or PascalCase).
+### Project-specific rules
+
+All set to `error` (not `warn`), so `npm run lint` fails on violations:
+
+| Rule | Enforcement | Rationale |
+|------|-------------|-----------|
+| `curly` | All control statements need `{}` | Prevents bugs from dangling else/if-without-braces |
+| `eqeqeq` | Must use `===` and `!==` | Prevents type coercion surprises |
+| `no-throw-literal` | Must throw `Error` objects | Ensures stack traces on errors |
+| `@typescript-eslint/naming-convention` | Imports must be camelCase or PascalCase (`warn` only) | Consistency without blocking builds |
 
 ### Test file relaxations
 
-Files under `src/test/**/*.ts` have these rules disabled:
+Files under `src/test/**/*.ts` have these rules disabled because test patterns routinely need them:
 
-- `@typescript-eslint/no-non-null-assertion` -- Tests often assert on known-good data
+- `@typescript-eslint/no-non-null-assertion` -- Tests assert on known-good data
 - `@typescript-eslint/no-explicit-any` -- Mock objects frequently need `any`
-- `@typescript-eslint/no-require-imports` -- Some test patterns need `require()`
+- `@typescript-eslint/no-require-imports` -- Some mocking patterns need `require()`
 
-### Prettier integration
+### Fixing common lint errors
 
-`eslint-config-prettier` is included as the last config entry to disable all formatting-related ESLint rules. This prevents conflicts between ESLint and Prettier.
+**Unused variable after destructuring:**
+
+```typescript
+// Error: 'status' is assigned but never used
+const { id, status, findings } = scan;
+
+// Fix: prefix with underscore
+const { id, _status, findings } = scan;
+// Or destructure only what you need
+const { id, findings } = scan;
+```
+
+**`any` in production code:**
+
+```typescript
+// Error: Unexpected any
+function process(data: any) { ... }
+
+// Fix: use unknown and narrow
+function process(data: unknown) {
+  if (typeof data === 'string') { ... }
+}
+```
+
+### Adding new ESLint rules
+
+Edit `vsix/eslint.config.mjs`. Add rules to the `rules` object in the first config block (production code) or the second block (test overrides). Use `error` for rules that should block, `warn` for advisories.
+
+:::warning
+Always add `eslint-config-prettier` (the `prettierConfig` import) as the **last** entry in the config array. It disables all formatting rules that would conflict with Prettier. Adding rules after it can re-enable conflicts.
+:::
 
 ## TypeScript Strictness
 
-`vsix/tsconfig.json` enables strict mode plus additional checks:
+`vsix/tsconfig.json` enables `strict` mode (which bundles `noImplicitAny`, `strictNullChecks`, `strictFunctionTypes`, and others) plus these additional checks:
 
-| Check | What it catches |
-|-------|-----------------|
-| `strict` | All base strict checks (noImplicitAny, strictNullChecks, etc.) |
-| `noImplicitReturns` | Functions that don't return in all code paths |
-| `noFallthroughCasesInSwitch` | Missing `break` in switch cases |
-| `noUnusedParameters` | Unused function parameters (prefix with `_` to suppress) |
-| `noUnusedLocals` | Unused local variables |
-| `skipLibCheck` | Skips type-checking `.d.ts` in node_modules (required for PGLite's WASM/browser types) |
+| Check | What it catches | Common fix |
+|-------|-----------------|------------|
+| `noImplicitReturns` | Functions that don't return in all code paths | Add a `return` to every branch, or return early with a default |
+| `noFallthroughCasesInSwitch` | Missing `break`/`return` in switch cases | Add `break` or `return`. Use `// falls through` comment only for intentional fallthrough. |
+| `noUnusedParameters` | Unused function parameters | Prefix with `_` (e.g., `_context`). Do **not** remove if the parameter is required by an interface contract. |
+| `noUnusedLocals` | Unused local variables | Remove the variable. If it's used only for its type, use `import type`. |
+| `skipLibCheck` | N/A -- skips type-checking `.d.ts` in node_modules | Required because PGLite's type declarations reference browser/WASM types not available in the Node.js type environment. |
+
+### Working with strict null checks
+
+`strictNullChecks` (enabled via `strict`) means every type excludes `null` and `undefined` unless explicitly included. This is the check you'll encounter most often:
+
+```typescript
+// Error: Object is possibly 'undefined'
+const name = config.get('ashWorkbench.ashPath').trim();
+
+// Fix: handle the undefined case
+const name = config.get('ashWorkbench.ashPath') ?? 'ash';
+
+// Or use a type guard
+const raw = config.get('ashWorkbench.ashPath');
+if (raw) {
+  const name = raw.trim();
+}
+```
 
 ## Test Architecture
 

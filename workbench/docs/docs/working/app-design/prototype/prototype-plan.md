@@ -102,7 +102,7 @@ workbench/
 
 ## 5. Implementation Phases
 
-### Phase 0: Build Pipeline -- Not Completed
+### Phase 0: Build Pipeline -- Completed
 
 Establish the build bridge between sibling packages before writing any application code. This catches build issues immediately.
 
@@ -126,7 +126,7 @@ Establish the build bridge between sibling packages before writing any applicati
 
 ---
 
-### Phase 1: Extension Skeleton -- Not Completed
+### Phase 1: Extension Skeleton -- Completed
 
 Restructure `vsix/src/`, declare all VS Code contribution points, define types and mock data. No providers or UI yet -- just the foundation.
 
@@ -189,7 +189,7 @@ Restructure `vsix/src/`, declare all VS Code contribution points, define types a
 
 ---
 
-### Phase 2: Tree View -- Not Completed
+### Phase 2: Tree View -- Completed
 
 Implement the scan history tree view with mock data and status icons.
 
@@ -216,7 +216,7 @@ Implement the scan history tree view with mock data and status icons.
 
 ---
 
-### Phase 3: WebView Setup (Tailwind + ShadCN) -- Not Completed
+### Phase 3: WebView Setup (Tailwind + ShadCN) -- Completed
 
 Transform the Vite scaffold into a VS Code WebView-ready React app with Tailwind v4 and ShadCN/ui.
 
@@ -266,7 +266,7 @@ Transform the Vite scaffold into a VS Code WebView-ready React app with Tailwind
 
 ---
 
-### Phase 4: Dual WebView Providers + Message Bridge -- Not Completed
+### Phase 4: Dual WebView Providers + Message Bridge -- Completed
 
 Wire both WebView contexts and verify end-to-end message round-trips.
 
@@ -300,7 +300,7 @@ Wire both WebView contexts and verify end-to-end message round-trips.
 
 ---
 
-### Phase 5: UI Screens -- Not Completed
+### Phase 5: UI Screens -- Completed
 
 Build all UI components with ShadCN. This is the largest phase.
 
@@ -355,7 +355,7 @@ Build all UI components with ShadCN. This is the largest phase.
 
 ---
 
-### Phase 6: Integration and Polish -- Not Completed
+### Phase 6: Integration and Polish -- Completed
 
 Final wiring, build system validation, and exit criteria verification.
 
