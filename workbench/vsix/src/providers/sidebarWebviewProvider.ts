@@ -29,11 +29,6 @@ export class SidebarWebviewProvider implements vscode.WebviewViewProvider {
 
     webviewView.webview.html = getWebviewHtml(webviewView.webview, this.extensionUri);
 
-    // Small delay to ensure the webview is ready to receive messages
-    setTimeout(() => {
-      webviewView.webview.postMessage({ type: 'init', payload: { context: 'sidebar' } });
-    }, 100);
-
     webviewView.webview.onDidReceiveMessage((message: WebviewToExtMessage) => {
       this.handleMessage(message);
     });
@@ -42,6 +37,8 @@ export class SidebarWebviewProvider implements vscode.WebviewViewProvider {
   private handleMessage(message: WebviewToExtMessage): void {
     switch (message.type) {
       case 'requestState': {
+        // Send init first so the webview knows its context, then send state
+        this.view?.webview.postMessage({ type: 'init', payload: { context: 'sidebar' } });
         const scans = getMockScans();
         const summary = getMockSummary();
         this.view?.webview.postMessage({ type: 'stateUpdate', payload: { scans, summary } });

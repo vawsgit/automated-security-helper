@@ -31,14 +31,6 @@ export class FindingsPanelManager {
 
     this.panel.webview.html = getWebviewHtml(this.panel.webview, this.extensionUri);
 
-    // Small delay to ensure the webview is ready
-    setTimeout(() => {
-      this.panel?.webview.postMessage({
-        type: 'init',
-        payload: { context: 'editorPanel', scanId },
-      });
-    }, 100);
-
     this.panel.webview.onDidReceiveMessage((message: WebviewToExtMessage) => {
       this.handleMessage(message, scanId);
     });
@@ -51,6 +43,11 @@ export class FindingsPanelManager {
   private handleMessage(message: WebviewToExtMessage, currentScanId: string): void {
     switch (message.type) {
       case 'requestState': {
+        // Send init first so the webview knows its context, then send findings
+        this.panel?.webview.postMessage({
+          type: 'init',
+          payload: { context: 'editorPanel', scanId: currentScanId },
+        });
         const findings = getMockFindings(currentScanId);
         this.panel?.webview.postMessage({
           type: 'findingsUpdate',
