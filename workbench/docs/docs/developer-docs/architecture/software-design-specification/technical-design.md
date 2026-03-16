@@ -198,7 +198,7 @@ class ScannerService {
   // Spawn ASH container, return scan ID
   async startScan(params: {
     projectId: string;
-    sourceDir: string;
+    targetPath: string;
     severityThreshold: string;
   }): Promise<string>;
 
@@ -427,14 +427,31 @@ model Project {
   rootPath  String   @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  scans     Scan[]
-  findings  Finding[]
+  scanTargets ScanTarget[]
+  scans       Scan[]
+  findings    Finding[]
+}
+
+model ScanTarget {
+  id          String   @id @default(uuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id])
+  path        String
+  displayName String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  scans       Scan[]
+  findings    Finding[]
+
+  @@unique([projectId, path])
 }
 
 model Scan {
   id                String    @id @default(uuid())
   projectId         String
   project           Project   @relation(fields: [projectId], references: [id])
+  scanTargetId      String
+  scanTarget        ScanTarget @relation(fields: [scanTargetId], references: [id])
   sourceDir         String
   status            ScanStatus
   severityThreshold String    @default("LOW")
@@ -454,6 +471,8 @@ model Finding {
   scan        Scan        @relation(fields: [scanId], references: [id], onDelete: Cascade)
   projectId   String
   project     Project     @relation(fields: [projectId], references: [id])
+  scanTargetId String
+  scanTarget   ScanTarget  @relation(fields: [scanTargetId], references: [id])
   ruleId      String
   ruleIds     Json?
   scanner     String
@@ -466,7 +485,7 @@ model Finding {
   snippet     String?
   disposition Disposition @default(PENDING)
 
-  @@index([projectId, ruleId, file])
+  @@index([scanTargetId, ruleId, file])
   @@index([scanId, severity])
 }
 
@@ -827,7 +846,7 @@ Shared between extension and WebView (duplicated in both packages):
 // --- WebView -> Extension ---
 
 type WebviewToExtMessage =
-  | { type: 'startScan'; payload: { sourceDir: string; severityThreshold: string } }
+  | { type: 'startScan'; payload: { targetPath: string; severityThreshold?: string } }
   | { type: 'cancelScan'; payload: { scanId: string } }
   | { type: 'selectScan'; payload: { scanId: string } }
   | { type: 'selectFinding'; payload: { findingId: string } }
@@ -844,6 +863,7 @@ type ExtToWebviewMessage =
   | { type: 'findingList'; payload: FindingRow[] }
   | { type: 'findingDetail'; payload: FindingDetail }
   | { type: 'scanProgress'; payload: { scanId: string; status: string; elapsed: number } }
+  | { type: 'scanStarted'; payload: { targetPath: string } }
   | { type: 'summary'; payload: DispositionSummary }
   | { type: 'error'; payload: { message: string } }
 ```
@@ -854,17 +874,22 @@ The WebView uses React `useReducer` for local state:
 
 ```typescript
 interface AppState {
-  view: 'dashboard' | 'findingList' | 'findingDetail';
+  view: 'dashboard' | 'findingList' | 'findingDetail' | 'scanHistory' | 'scanDetail' | 'scanProgress';
   scans: ScanSummary[];
   findings: FindingRow[];
   selectedFinding: FindingDetail | null;
   filters: FilterState;
   scanProgress: { scanId: string; status: string; elapsed: number } | null;
   summary: DispositionSummary;
+  scanTargets: ScanTarget[];
+  selectedScanTargetId: string | null;
+  targetPath: string | null;
 }
 ```
 
 State is populated entirely from extension messages. On WebView creation (or restore), the WebView sends `{ type: 'requestState' }` and the extension pushes all current data.
+
+Scan target filtering is handled client-side: when `selectedScanTargetId` is set, the finding list and scan history views derive filtered subsets via `useMemo` rather than requesting filtered data from the extension host.
 
 ### 6.5 Content Security Policy
 
@@ -950,8 +975,21 @@ Key additions to `package.json`:
       {
         "command": "ashWorkbench.cancelScan",
         "title": "ASH: Cancel Scan"
+      },
+      {
+        "command": "ashWorkbench.scanFolder",
+        "title": "ASH: Scan This Folder"
       }
     ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "ashWorkbench.scanFolder",
+          "when": "explorerResourceIsFolder",
+          "group": "7_modification"
+        }
+      ]
+    },
     "configuration": {
       "title": "ASH Workbench",
       "properties": {

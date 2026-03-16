@@ -90,8 +90,14 @@
     "test:unit": "mocha",
     "test:integration": "vscode-test"
   },
-  "devDependencies": {
+  "dependencies": {
+    "@augment-vir/test": "^31.68.1",
     "@electric-sql/pglite": "^0.2.17",
+    "@prisma/client": "^7.5.0",
+    "@prisma/driver-adapter-utils": "^7.5.0",
+    "prisma-pglite": "^2.0.2"
+  },
+  "devDependencies": {
     "@types/mocha": "^10.0.10",
     "@types/node": "22.x",
     "@types/sinon": "^17.0.0",
@@ -102,6 +108,7 @@
     "eslint-config-prettier": "^10.0.0",
     "mocha": "^11.0.0",
     "prettier": "^3.5.0",
+    "prisma": "^7.5.0",
     "sinon": "^19.0.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.56.1"

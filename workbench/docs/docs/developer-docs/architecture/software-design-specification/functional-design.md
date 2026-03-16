@@ -23,7 +23,7 @@ The core loop: **scan code, view findings, decide what to do about each one.**
 | Capability | Description |
 |------------|-------------|
 | **Project management** | Create/select a project scoped to a workspace folder. All scans and findings belong to a project. |
-| **Scan execution** | Run a single ASH scan against a directory, with progress feedback and the ability to cancel. |
+| **Scan execution** | Select a scan target directory (workspace root or subdirectory), run an ASH scan, with progress feedback and the ability to cancel. Scans and findings are scoped per target directory. |
 | **Scan history** | View a list of current and past scans with summary metadata. Delete old scans. |
 | **Finding list** | View deduplicated findings from a scan, filterable by severity, file, scanner, and status. |
 | **Finding detail** | View a finding's affected code locations, description, and rule information. Navigate to the affected file/line in the editor. |
@@ -117,6 +117,19 @@ The root aggregate. Scopes all data to a workspace.
 | `createdAt` | DateTime | |
 | `updatedAt` | DateTime | |
 
+#### ScanTarget
+
+A directory path that ASH scans. Scans, findings, and dispositions are scoped per scan target — dispositions only carry forward between scans sharing the same target directory. This is the primary grouping dimension for the workbench.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `id` | UUID | Primary key |
+| `projectId` | UUID | FK to Project |
+| `path` | String | Absolute path to the scan target directory |
+| `displayName` | String | User-friendly name (derived from directory name) |
+| `createdAt` | DateTime | |
+| `updatedAt` | DateTime | |
+
 #### Scan
 
 A single execution of the ASH scanner suite against a target directory.
@@ -125,6 +138,7 @@ A single execution of the ASH scanner suite against a target directory.
 |-------|------|-------|
 | `id` | UUID | Primary key |
 | `projectId` | UUID | FK to Project |
+| `scanTargetId` | UUID | FK to ScanTarget |
 | `sourceDir` | String | Relative path to scanned directory (relative to project root) |
 | `status` | Enum | `running`, `completed`, `failed`, `cancelled` |
 | `severityThreshold` | Enum | `LOW`, `MEDIUM`, `HIGH` -- minimum severity to report |
@@ -143,6 +157,7 @@ An individual security issue detected by a scanner. Matched across scans by the 
 | `id` | UUID | Primary key |
 | `scanId` | UUID | FK to Scan |
 | `projectId` | UUID | FK to Project (denormalized for cumulative queries) |
+| `scanTargetId` | UUID | FK to ScanTarget (denormalized for target-scoped queries) |
 | `ruleId` | String | Primary scanner rule identifier (e.g., `CKV_AWS_18`) |
 | `ruleIds` | JSON | Array of all rule IDs if multiple scanners flagged same issue |
 | `scanner` | String | Which scanner produced this (`checkov`, `cdk-nag`, `semgrep`, etc.) |
@@ -154,12 +169,15 @@ An individual security issue detected by a scanner. Matched across scans by the 
 | `snippet` | String | Code excerpt, nullable |
 | `disposition` | Enum | `pending`, `fix`, `suppress`, `defer` |
 
-**Identity rule:** Two findings are the "same" issue when they share the same `(ruleId, file)` pair. This supports future delta computation without schema changes.
+**Identity rule:** Two findings are the "same" issue when they share the same `(scanTargetId, ruleId, file)` triple. Dispositions carry forward only within the same scan target. This supports future delta computation without schema changes.
 
 ### 3.2 Entity Relationships
 
 ```mermaid
 erDiagram
+    Project ||--o{ ScanTarget : "has many"
+    ScanTarget ||--o{ Scan : "has many"
+    ScanTarget ||--o{ Finding : "has many"
     Project ||--o{ Scan : "has many"
     Project ||--o{ Finding : "has many"
     Scan ||--o{ Finding : "has many"
@@ -170,9 +188,17 @@ erDiagram
         string rootPath
     }
 
+    ScanTarget {
+        uuid id PK
+        uuid projectId FK
+        string path
+        string displayName
+    }
+
     Scan {
         uuid id PK
         uuid projectId FK
+        uuid scanTargetId FK
         string sourceDir
         enum status
         int findingsCount
@@ -182,6 +208,7 @@ erDiagram
         uuid id PK
         uuid scanId FK
         uuid projectId FK
+        uuid scanTargetId FK
         string ruleId
         string scanner
         enum severity
@@ -229,10 +256,11 @@ All transitions are user-initiated. There is no automated state change in the PO
 **Behavior:**
 
 1. User initiates a scan via command palette or sidebar button.
-2. User selects or confirms the target directory (defaults to workspace root).
+2. A scan target picker dialog presents existing scan targets (with finding counts), the workspace root (default), and an option to enter a custom directory path. The user selects a target.
 3. Extension spawns the ASH CLI process with the configured parameters.
 4. Progress is reported to the UI as the scan runs (scanner-level progress if available, otherwise an indeterminate indicator).
 5. On completion, the extension parses ASH output (SARIF format), deduplicates findings, and stores them in the database.
+5b. The scan is associated with a ScanTarget record. If no ScanTarget exists for the chosen directory, one is created automatically.
 6. On failure, the error message is stored and displayed.
 7. On cancel, the ASH process is killed and the scan record is marked `cancelled`.
 
@@ -250,6 +278,7 @@ All transitions are user-initiated. There is no automated state change in the PO
 
 - Sidebar panel shows a list of scans for the active project, most recent first.
 - Each scan entry shows: date/time, status (with icon), source directory, finding count, severity badges.
+- Scans can be filtered by scan target. Target filter tabs appear when multiple targets exist.
 - Clicking a scan shows its findings in the finding list.
 - A running scan appears at the top with a progress indicator.
 - Context menu or button allows deleting a completed scan (with confirmation). Deleting a scan cascades to its findings.
@@ -260,9 +289,10 @@ All transitions are user-initiated. There is no automated state change in the PO
 
 **Behavior:**
 
-- Shows findings for a selected scan, or cumulative findings across all scans in the project.
-- Default view: findings from the most recent completed scan.
-- Cumulative view: one row per unique `(ruleId, file)` pair across all scans, showing the most recent disposition.
+- Shows findings scoped to a scan target, or cumulative findings across all scan targets in the project.
+- When navigating from a scan target card on the dashboard, findings are filtered to that target.
+- Default view: all findings across all targets (no filter). A dismissible filter chip shows the active target filter.
+- Cumulative view: one row per unique `(scanTargetId, ruleId, file)` triple, showing the most recent disposition.
 - Sortable by severity (default: HIGH first), file, scanner.
 - Filterable by: severity level, disposition status, scanner, file path substring.
 - Each row shows: severity (color-coded), description (one line), file path, scanner, disposition status.
@@ -309,6 +339,7 @@ Tiers 3b (AI vulnerability explanation), 3c (repair options), and 3d (suppressio
 **Cumulative triage view:**
 - Summary bar showing counts: `Total: N | Pending: N | Fix: N | Suppress: N | Defer: N`
 - This view operates across all scans, using the most recent disposition for each unique finding.
+- Triage scoping: dispositions are scoped per scan target. The same `(ruleId, file)` finding in two different scan target directories has independent dispositions. This prevents unrelated scans from interfering with each other's triage state.
 
 **What triage does NOT do in POC:**
 - No propagation to categories (no categories yet)
@@ -451,6 +482,7 @@ The WebView and extension host communicate via a message protocol:
 | `findingList` | Array of findings (paginated) | On scan selection, on filter change |
 | `findingDetail` | Single finding with full data | On finding selection |
 | `scanProgress` | Status text, percentage (if available) | During active scan |
+| `scanStarted` | `{ targetPath: string }` | After scan is initiated, confirms target path to WebView |
 | `summary` | Disposition counts | On load, after disposition change |
 | `applicationInfo` | Extension version, schema version, database stats | On settings screen load |
 | `applicationReset` | Empty | After successful reset (triggers WebView reload) |
@@ -459,7 +491,7 @@ The WebView and extension host communicate via a message protocol:
 
 | Message Type | Payload | Effect |
 |-------------|---------|--------|
-| `startScan` | `{ sourceDir, severityThreshold }` | Begin ASH scan |
+| `startScan` | `{ targetPath: string; severityThreshold?: string }` | Begin ASH scan against a target directory |
 | `cancelScan` | `{ scanId }` | Kill running scan |
 | `selectScan` | `{ scanId }` | Load findings for scan |
 | `selectFinding` | `{ findingId }` | Load finding detail |
@@ -472,16 +504,17 @@ The WebView and extension host communicate via a message protocol:
 
 ### 5.4 WebView Screens
 
-**Screen 1: Dashboard / Scan List**
-- Project name header
-- "Run Scan" button (prominent)
-- Active scan progress (if running)
-- Scan history table: date, status, directory, findings count, severity badges
-- Summary bar: total findings, disposition breakdown across all scans
+**Screen 1: Dashboard**
+- Project name and root path header
+- "Run Scan" button (opens scan target picker dialog)
+- Summary grid: total findings (with severity breakdown), scan target count, triage progress
+- Scan target cards: each card shows target display name, path, finding count, severity badges, triage progress bar, scan count, and last scanned date. Clicking a target navigates to its findings. A per-card "Scan" button triggers a scan for that target.
+- Quick action buttons: "All Findings", "Scan History"
 
 **Screen 2: Finding List** (after selecting a scan or choosing "All Findings")
-- Breadcrumb: Project > Scan (date) or Project > All Findings
+- Breadcrumb: Dashboard > [Target Name] > Findings (or Dashboard > Findings when unfiltered)
 - Filter bar: severity chips, scanner dropdown, disposition dropdown, file search
+- Target filter: when navigated from a scan target, a dismissible chip shows the active target. Clearing it shows all findings.
 - Summary bar: count by disposition
 - Finding table: severity icon, description, file, scanner, disposition badge
 - Click a row to expand or navigate to detail
@@ -590,8 +623,11 @@ sequenceDiagram
     participant DB as PGLite
 
     User->>WV: Click "Run Scan"
-    WV->>Ext: startScan { sourceDir, severityThreshold }
+    WV-->>User: Scan target picker dialog (workspace root, existing targets, custom path)
+    User->>WV: Select target directory
+    WV->>Ext: startScan { targetPath, severityThreshold }
     Ext->>DB: Create Scan record (status: running)
+    Ext->>DB: Find or create ScanTarget for targetPath
     Ext->>WV: scanProgress { status: "starting" }
     Ext->>ASH: Spawn process
 

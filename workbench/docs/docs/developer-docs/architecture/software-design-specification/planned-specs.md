@@ -69,10 +69,10 @@ This is the persistence foundation for every subsequent spec.
 
 **New files to create:**
 
-- `vsix/prisma/schema.prisma` -- Prisma schema defining Project, Scan, Finding
-  entities with enums (ScanStatus, Severity, Disposition) and indexes. Must enable
-  `driverAdapters` preview feature. See technical design Section 4.1 for the exact
-  schema.
+- `vsix/prisma/schema.prisma` -- Prisma schema defining Project, ScanTarget, Scan,
+  Finding entities with enums (ScanStatus, Severity, Disposition) and indexes. Must
+  enable `driverAdapters` preview feature. See technical design Section 4.1 for the
+  exact schema.
 - `vsix/src/services/database.ts` -- `DatabaseService` class that:
   - Initializes PGLite with filesystem persistence at `context.globalStorageUri`
   - Runs raw SQL migrations directly via `pglite.exec()` (bypasses Prisma's
@@ -110,7 +110,7 @@ This is the persistence foundation for every subsequent spec.
 
 1. `DatabaseService.initialize()` creates a PGLite instance and applies all
    Prisma-generated migrations
-2. Prisma client can CRUD all three entities (Project, Scan, Finding)
+2. Prisma client can CRUD all four entities (Project, ScanTarget, Scan, Finding)
 3. Finding cascade delete works when a Scan is deleted
 4. Migrations are idempotent (running twice does not error)
 5. In-memory PGLite tests pass in under 5 seconds
@@ -295,8 +295,10 @@ parses output, and stores findings in the database.
 
 - `vsix/src/services/scanner.ts` -- `ScannerService` class with:
   - Constructor accepts `PrismaClient` and `projectId`
-  - `startScan(params: { sourceDir, severityThreshold? })` -- Creates a Scan
-    record in DB (status: RUNNING), spawns ASH CLI child process. Returns `scanId`.
+  - `startScan(params: { targetPath, severityThreshold? })` -- Finds or creates a
+    ScanTarget for the given `targetPath`, creates a Scan record in DB (status:
+    RUNNING) linked to that ScanTarget, spawns ASH CLI child process. Returns
+    `scanId`.
     - ASH invocation: `ash --source-dir <abs-path> --output-dir <temp-dir>
       --output-formats sarif --color false --progress`
     - `ashPath` and `ashMode` read from VS Code configuration
@@ -374,8 +376,9 @@ pushes updated state back to the WebView.
 **Existing files to modify:**
 
 - `vsix/src/commands/scanCommands.ts` -- Replace mock implementations:
-  - `ashWorkbench.startScan` command: prompt for target directory (default workspace
-    root), call `ScannerService.startScan()`, send `scanStarted` message to WebView
+  - `ashWorkbench.startScan` command: open scan target picker dialog (shows existing
+    targets, workspace root, custom path), call `ScannerService.startScan()` with
+    `targetPath`, send `scanStarted` message to WebView
   - `ashWorkbench.cancelScan` command: call `ScannerService.cancelScan()`
   - `ashWorkbench.scanFolder` command: use folder URI from context menu, call
     `ScannerService.startScan()` with that path
@@ -459,10 +462,9 @@ finding data.
     findings in the project. Returns `DispositionSummary`.
   - `getScanSummaries(projectId: string)` -- Query all scans for a project,
     ordered by `startedAt` DESC. Returns `ScanSummary[]`.
-  - `getScanTargets(projectId: string)` -- Derive scan targets by grouping scans
-    by `sourceDir`. Compute per-target finding counts, severity breakdown, and
-    triage progress. Returns `ScanTarget[]`. (This is a computed/derived concept,
-    not a separate database entity.)
+  - `getScanTargets(projectId: string)` -- Query ScanTarget records for the
+    project, enriched with computed per-target finding counts, severity breakdown,
+    and triage progress. Returns `ScanTarget[]`.
   - Map database entity shapes to the WebView `FindingRow` and `ScanSummary`
     interfaces defined in `vsix/src/models/types.ts`
 
@@ -486,8 +488,7 @@ finding data.
 - `vsix/src/models/types.ts` -- Verify `FindingRow`, `ScanSummary`, `ScanTarget`,
   `DispositionSummary` interfaces match what the database queries produce. Reconcile
   any differences between the mock types and the Prisma schema:
-  - `FindingRow.scanTargetId` -- derived from scan's `sourceDir`, not stored on
-    Finding
+  - `FindingRow.scanTargetId` -- direct FK on Finding to ScanTarget
   - `FindingRow.notes` -- add to Prisma schema if not present
   - `FindingRow.aiAnalysis` and `FindingRow.suppression` -- keep nullable, always
     null for POC
@@ -499,7 +500,7 @@ finding data.
 2. Selecting a scan loads its findings from the database
 3. Findings are correctly shaped as `FindingRow[]` for the WebView
 4. Summary counts are accurate (total, per-disposition)
-5. Scan targets are correctly derived from scan `sourceDir` values
+5. Scan targets are correctly queried from the database with computed counts
 6. Mock data imports (`getMockFindings`, `getMockScans`, `getMockSummary`) are
    removed from `findingsPanelManager.ts` and `sidebarWebviewProvider.ts`
 7. Filter queries work (by severity, scanner, disposition, file pattern)
@@ -838,14 +839,14 @@ some fields that diverge from the Prisma schema in the technical design:
 
 | Field | Current Mock Type | Prisma Schema | Resolution |
 |-------|------------------|---------------|------------|
-| `FindingRow.scanTargetId` | Present | Not in schema | Derive from Scan's `sourceDir` at query time |
+| `FindingRow.scanTargetId` | Present | Present (FK to ScanTarget) | Direct map |
 | `FindingRow.notes` | Present | Not in schema | Add `notes String @default("")` to Finding model |
 | `FindingRow.title` | Present | Present | Direct map |
 | `FindingRow.aiAnalysis` | Present (nullable) | Not in schema | Keep on type, always null in POC |
 | `FindingRow.suppression` | Present (nullable) | Not in schema | Keep on type, always null in POC |
 | `FindingRow.firstDetectedAt` | Present | Not in schema | Map from Finding's `createdAt` or Scan's `startedAt` |
-| `ScanSummary.scanTargetId` | Present | Not in schema | Derive from Scan's `sourceDir` hash or path |
-| `ScanTarget` | Full interface | No entity | Computed at query time from scan grouping |
+| `ScanSummary.scanTargetId` | Present | Present (FK to ScanTarget) | Direct map |
+| `ScanTarget` | Full interface | Database entity | Direct map (enriched with computed counts at query time) |
 
 These reconciliations happen primarily in Spec 6 (Finding Queries) where the
 database query results are mapped to WebView-facing types.

@@ -1,0 +1,100 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Project {
+  id        String   @id @default(uuid())
+  name      String
+  rootPath  String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  scanTargets ScanTarget[]
+  scans       Scan[]
+  findings    Finding[]
+}
+
+model ScanTarget {
+  id          String   @id @default(uuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id])
+  path        String
+  displayName String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  scans    Scan[]
+  findings Finding[]
+
+  @@unique([projectId, path])
+}
+
+model Scan {
+  id                String     @id @default(uuid())
+  projectId         String
+  project           Project    @relation(fields: [projectId], references: [id])
+  scanTargetId      String
+  scanTarget        ScanTarget @relation(fields: [scanTargetId], references: [id])
+  sourceDir         String
+  status            ScanStatus
+  severityThreshold String     @default("LOW")
+  findingsCount     Int        @default(0)
+  severityBreakdown Json?
+  startedAt         DateTime   @default(now())
+  completedAt       DateTime?
+  errorMessage      String?
+
+  findings Finding[]
+
+  @@index([projectId, startedAt(sort: Desc)])
+}
+
+model Finding {
+  id           String      @id @default(uuid())
+  scanId       String
+  scan         Scan        @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  projectId    String
+  project      Project     @relation(fields: [projectId], references: [id])
+  scanTargetId String
+  scanTarget   ScanTarget  @relation(fields: [scanTargetId], references: [id])
+  ruleId       String
+  ruleIds      Json?
+  scanner      String
+  severity     Severity
+  file         String
+  startLine    Int
+  endLine      Int?
+  title        String
+  description  String
+  snippet      String?
+  disposition  Disposition @default(PENDING)
+
+  @@index([scanTargetId, ruleId, file])
+  @@index([scanId, severity])
+}
+
+enum ScanStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum Severity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+  INFO
+}
+
+enum Disposition {
+  PENDING
+  FIX
+  SUPPRESS
+  DEFER
+}
