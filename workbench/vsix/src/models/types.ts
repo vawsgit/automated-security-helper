@@ -4,6 +4,8 @@ export type Severity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'INFO';
 
 export type Disposition = 'PENDING' | 'FIX' | 'SUPPRESS' | 'DEFER';
 
+export type RiskLevel = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE';
+
 export interface Project {
   id: string;
   name: string;
@@ -21,6 +23,40 @@ export interface ScanSummary {
   severityCounts: Record<Severity, number>;
 }
 
+export interface AiReference {
+  title: string;
+  url: string;
+}
+
+export interface SuggestedFix {
+  description: string;
+  diffText: string;
+  language: string;
+}
+
+export interface RiskAssessment {
+  exploitability: RiskLevel;
+  exploitabilityRationale: string;
+  impact: RiskLevel;
+  impactRationale: string;
+  likelihood: RiskLevel;
+  likelihoodRationale: string;
+}
+
+export interface AiAnalysis {
+  explanation: string;
+  riskAssessment: RiskAssessment;
+  suggestedFix: SuggestedFix | null;
+  references: AiReference[];
+}
+
+export interface SuppressionData {
+  justification: string;
+  yamlEntry: string;
+  expiresAt: string | null;
+  createdAt: string;
+}
+
 export interface FindingRow {
   id: string;
   scanId: string;
@@ -34,6 +70,10 @@ export interface FindingRow {
   startLine: number;
   endLine: number;
   codeSnippet: string;
+  notes: string;
+  firstDetectedAt: string;
+  aiAnalysis: AiAnalysis | null;
+  suppression: SuppressionData | null;
 }
 
 export interface DispositionSummary {

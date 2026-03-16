@@ -1,16 +1,11 @@
 import { Badge } from '@/components/ui/badge';
+import { dispositionColor } from '@/lib/theme-colors';
 import type { Disposition } from '../types/types';
 
-const dispositionStyles: Record<Disposition, string> = {
-  PENDING: 'bg-gray-500 text-white hover:bg-gray-600',
-  FIX: 'bg-green-600 text-white hover:bg-green-700',
-  SUPPRESS: 'bg-purple-600 text-white hover:bg-purple-700',
-  DEFER: 'bg-amber-600 text-white hover:bg-amber-700',
-};
-
 export function DispositionBadge({ disposition }: { disposition: Disposition }) {
+  const { tinted, hover } = dispositionColor[disposition];
   return (
-    <Badge className={dispositionStyles[disposition]}>
+    <Badge className={`${tinted} ${hover}`}>
       {disposition}
     </Badge>
   );

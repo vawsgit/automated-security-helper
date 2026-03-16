@@ -1,7 +1,9 @@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { severityColor, dispositionColor } from '@/lib/theme-colors';
 import { postMessage } from '../hooks/useVSCodeAPI';
+import { Play, List } from 'lucide-react';
 import type { ScanSummary, DispositionSummary, Severity, Disposition } from '../types/types';
 
 interface SidebarDashboardProps {
@@ -9,23 +11,11 @@ interface SidebarDashboardProps {
   summary: DispositionSummary;
 }
 
-const severityColors: Record<Severity, string> = {
-  CRITICAL: 'bg-red-700 text-white',
-  HIGH: 'bg-orange-600 text-white',
-  MEDIUM: 'bg-yellow-600 text-white',
-  LOW: 'bg-blue-600 text-white',
-  INFO: 'bg-gray-500 text-white',
-};
-
-const dispositionColors: Record<Disposition, string> = {
-  PENDING: 'bg-gray-500 text-white',
-  FIX: 'bg-green-600 text-white',
-  SUPPRESS: 'bg-purple-600 text-white',
-  DEFER: 'bg-amber-600 text-white',
-};
-
 export function SidebarDashboard({ scans, summary }: SidebarDashboardProps) {
+  const activeScan = scans.find(s => s.status === 'RUNNING');
   const latestScan = scans.find(s => s.status === 'COMPLETED');
+  const triaged = summary.total - summary.counts.PENDING;
+  const pct = summary.total > 0 ? Math.round((triaged / summary.total) * 100) : 0;
 
   return (
     <div className="p-3 flex flex-col gap-3">
@@ -39,16 +29,52 @@ export function SidebarDashboard({ scans, summary }: SidebarDashboardProps) {
         size="sm"
         onClick={() => postMessage({ type: 'startScan' })}
       >
+        <Play className="h-3.5 w-3.5 mr-1.5" />
         Run Scan
       </Button>
 
+      {/* Active scan indicator */}
+      {activeScan && (
+        <>
+          <Separator />
+          <div>
+            <h3 className="text-xs font-semibold mb-2 uppercase tracking-wide opacity-70">Active Scan</h3>
+            <div className="flex items-center gap-2">
+              <span className="text-yellow-500 animate-pulse">*</span>
+              <span className="text-xs">Scanning...</span>
+            </div>
+            <p className="text-xs opacity-50 mt-1">
+              Started {new Date(activeScan.startedAt).toLocaleTimeString()}
+            </p>
+            <Button variant="outline" size="sm" className="w-full mt-2 text-xs">
+              Cancel
+            </Button>
+          </div>
+        </>
+      )}
+
       <Separator />
 
+      {/* Triage progress */}
       <div>
-        <h3 className="text-xs font-semibold mb-2 uppercase tracking-wide opacity-70">Triage Summary</h3>
+        <h3 className="text-xs font-semibold mb-2 uppercase tracking-wide opacity-70">Triage Progress</h3>
+        <p className="text-xs mb-2">{triaged} of {summary.total} triaged ({pct}%)</p>
+        <div className="flex h-2 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-800 mb-2">
+          {(['FIX', 'SUPPRESS', 'DEFER', 'PENDING'] as Disposition[]).map(d => {
+            const width = summary.total > 0 ? (summary.counts[d] / summary.total) * 100 : 0;
+            if (width === 0) return null;
+            return (
+              <div
+                key={d}
+                className={`${dispositionColor[d].solid} transition-all`}
+                style={{ width: `${width}%` }}
+              />
+            );
+          })}
+        </div>
         <div className="flex flex-wrap gap-1.5">
           {(Object.keys(summary.counts) as Disposition[]).map(d => (
-            <Badge key={d} className={`${dispositionColors[d]} text-xs`}>
+            <Badge key={d} className={`${dispositionColor[d].tinted} text-xs`}>
               {d}: {summary.counts[d]}
             </Badge>
           ))}
@@ -57,22 +83,24 @@ export function SidebarDashboard({ scans, summary }: SidebarDashboardProps) {
 
       <Separator />
 
+      {/* Severity breakdown */}
       {latestScan && (
-        <div>
-          <h3 className="text-xs font-semibold mb-2 uppercase tracking-wide opacity-70">Severity Breakdown</h3>
-          <div className="flex flex-wrap gap-1.5">
-            {(Object.keys(latestScan.severityCounts) as Severity[]).map(s => (
-              latestScan.severityCounts[s] > 0 && (
-                <Badge key={s} className={`${severityColors[s]} text-xs`}>
-                  {s}: {latestScan.severityCounts[s]}
-                </Badge>
-              )
-            ))}
+        <>
+          <div>
+            <h3 className="text-xs font-semibold mb-2 uppercase tracking-wide opacity-70">Severity Breakdown</h3>
+            <div className="flex flex-wrap gap-1.5">
+              {(Object.keys(latestScan.severityCounts) as Severity[]).map(s => (
+                latestScan.severityCounts[s] > 0 && (
+                  <Badge key={s} className={`${severityColor[s].base} text-xs`}>
+                    {s}: {latestScan.severityCounts[s]}
+                  </Badge>
+                )
+              ))}
+            </div>
           </div>
-        </div>
+          <Separator />
+        </>
       )}
-
-      <Separator />
 
       {latestScan && (
         <Button
@@ -81,6 +109,7 @@ export function SidebarDashboard({ scans, summary }: SidebarDashboardProps) {
           size="sm"
           onClick={() => postMessage({ type: 'openFindings', payload: { scanId: latestScan.id } })}
         >
+          <List className="h-3.5 w-3.5 mr-1.5" />
           View Findings ({latestScan.findingCount})
         </Button>
       )}
