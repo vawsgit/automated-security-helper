@@ -8,7 +8,8 @@ export type ExtToWebviewMessage =
   | { type: 'stateUpdate'; payload: { scans: ScanSummary[]; summary: DispositionSummary } }
   | { type: 'findingsUpdate'; payload: { scanId: string; findings: FindingRow[] } }
   | { type: 'findingDetail'; payload: FindingRow }
-  | { type: 'dispositionUpdated'; payload: { findingId: string; disposition: Disposition } };
+  | { type: 'dispositionUpdated'; payload: { findingId: string; disposition: Disposition } }
+  | { type: 'scanStarted'; payload: { targetPath: string } };
 
 // WebView -> Extension Host
 export type WebviewToExtMessage =

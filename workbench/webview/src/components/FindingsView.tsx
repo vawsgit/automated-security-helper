@@ -30,19 +30,21 @@ import { AppBreadcrumb } from './AppBreadcrumb';
 import { SeverityBadge } from './SeverityBadge';
 import { DispositionBadge } from './DispositionBadge';
 import { severityOrder } from '@/lib/theme-colors';
-import type { FindingRow, Severity, Disposition } from '../types/types';
+import type { FindingRow, ScanTarget, Severity, Disposition } from '../types/types';
 
 interface FindingsViewProps {
   findings: FindingRow[];
+  selectedTarget?: ScanTarget;
   onSelectFinding: (findingId: string) => void;
   onSetDisposition: (findingId: string, disposition: Disposition) => void;
   onNavigateDashboard: () => void;
+  onClearTarget?: () => void;
 }
 
 const ALL_SEVERITIES: Severity[] = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO'];
 const ALL_DISPOSITIONS: Disposition[] = ['PENDING', 'FIX', 'SUPPRESS', 'DEFER'];
 
-export function FindingsView({ findings, onSelectFinding, onSetDisposition, onNavigateDashboard }: FindingsViewProps) {
+export function FindingsView({ findings, selectedTarget, onSelectFinding, onSetDisposition, onNavigateDashboard, onClearTarget }: FindingsViewProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [rowSelection, setRowSelection] = useState({});
   const [activeSeverities, setActiveSeverities] = useState<Set<Severity>>(new Set(ALL_SEVERITIES));
@@ -192,11 +194,22 @@ export function FindingsView({ findings, onSelectFinding, onSetDisposition, onNa
         <div>
           <AppBreadcrumb segments={[
             { label: 'Dashboard', onClick: onNavigateDashboard },
+            ...(selectedTarget ? [{ label: selectedTarget.displayName }] : []),
             { label: 'Findings' },
           ]} />
-          <p className="text-xs opacity-70 mt-1">
-            {findings.length} total &middot; {filtered.length} shown
-          </p>
+          <div className="flex items-center gap-2 mt-1">
+            <p className="text-xs opacity-70">
+              {findings.length} total &middot; {filtered.length} shown
+            </p>
+            {selectedTarget && onClearTarget && (
+              <button
+                className="text-xs px-2 py-0.5 rounded-full border opacity-60 hover:opacity-100 transition-opacity"
+                onClick={onClearTarget}
+              >
+                {selectedTarget.displayName} &times;
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

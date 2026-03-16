@@ -8,13 +8,19 @@ export class FindingsPanelManager {
 
   constructor(private readonly extensionUri: vscode.Uri) {}
 
-  public showFindings(scanId: string): void {
+  public showFindings(scanId: string, targetPath?: string): void {
     if (this.panel) {
       this.panel.reveal(vscode.ViewColumn.One);
       this.panel.webview.postMessage({
         type: 'init',
         payload: { context: 'editorPanel', scanId },
       });
+      if (targetPath) {
+        this.panel.webview.postMessage({
+          type: 'scanStarted',
+          payload: { targetPath },
+        });
+      }
       return;
     }
 
@@ -38,6 +44,16 @@ export class FindingsPanelManager {
     this.panel.onDidDispose(() => {
       this.panel = undefined;
     });
+
+    if (targetPath) {
+      // Send scanStarted after a short delay to ensure webview is ready
+      setTimeout(() => {
+        this.panel?.webview.postMessage({
+          type: 'scanStarted',
+          payload: { targetPath },
+        });
+      }, 500);
+    }
   }
 
   private handleMessage(message: WebviewToExtMessage, currentScanId: string): void {

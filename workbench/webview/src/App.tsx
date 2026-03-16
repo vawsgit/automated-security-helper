@@ -1,4 +1,4 @@
-import { useReducer, useCallback, useEffect } from 'react';
+import { useReducer, useCallback, useEffect, useMemo } from 'react';
 import { postMessage, useMessages } from './hooks/useVSCodeAPI';
 import { SidebarDashboard } from './components/SidebarDashboard';
 import { DevNav } from './components/DevNav';
@@ -10,9 +10,9 @@ import { ScanDetailView } from './components/ScanDetailView';
 import { ScanProgressView } from './components/ScanProgressView';
 import { EmptyStateView } from './components/EmptyStateView';
 import SinkPage from './pages/sink/SinkPage';
-import { mockProject, mockScans, mockFindings, mockSummary, updateMockDisposition, updateMockNotes } from './mock-data';
+import { mockProject, mockScans, mockFindings, mockSummary, mockScanTargets, updateMockDisposition, updateMockNotes, recomputeScanTargets } from './mock-data';
 import type { ExtToWebviewMessage } from './types/messages';
-import type { Project, ScanSummary, FindingRow, DispositionSummary, Disposition } from './types/types';
+import type { Project, ScanTarget, ScanSummary, FindingRow, DispositionSummary, Disposition } from './types/types';
 
 type ViewState =
   | 'loading' | 'dashboard' | 'findingList' | 'findingDetail'
@@ -28,6 +28,9 @@ interface AppState {
   summary: DispositionSummary;
   findings: FindingRow[];
   selectedFinding: FindingRow | undefined;
+  targetPath: string | undefined;
+  scanTargets: ScanTarget[];
+  selectedScanTargetId: string | undefined;
 }
 
 type AppAction =
@@ -38,6 +41,9 @@ type AppAction =
   | { type: 'VIEW_SCAN_DETAIL'; scanId: string }
   | { type: 'SET_DISPOSITION'; findingId: string; disposition: Disposition }
   | { type: 'SET_NOTES'; findingId: string; notes: string }
+  | { type: 'START_SCAN'; targetPath: string }
+  | { type: 'SELECT_SCAN_TARGET'; scanTargetId: string }
+  | { type: 'CLEAR_SCAN_TARGET' }
   | { type: 'BACK' }
   | { type: 'BACK_TO_LIST' };
 
@@ -59,6 +65,9 @@ const initialState: AppState = {
   summary: mockSummary,
   findings: mockFindings,
   selectedFinding: undefined,
+  targetPath: undefined,
+  scanTargets: mockScanTargets,
+  selectedScanTargetId: undefined,
 };
 
 function reducer(state: AppState, action: AppAction): AppState {
@@ -85,8 +94,19 @@ function reducer(state: AppState, action: AppAction): AppState {
           const selectedFinding = state.selectedFinding?.id === msg.payload.findingId
             ? { ...state.selectedFinding, disposition: msg.payload.disposition }
             : state.selectedFinding;
-          return { ...state, findings, selectedFinding, summary: recomputeSummary(findings) };
+          return {
+            ...state, findings, selectedFinding,
+            summary: recomputeSummary(findings),
+            scanTargets: recomputeScanTargets(findings, state.scans),
+          };
         }
+        case 'scanStarted':
+          return {
+            ...state,
+            viewHistory: [...state.viewHistory, state.view],
+            targetPath: msg.payload.targetPath,
+            view: 'scanProgress',
+          };
         default:
           return state;
       }
@@ -128,7 +148,11 @@ function reducer(state: AppState, action: AppAction): AppState {
       const selectedFinding = state.selectedFinding?.id === action.findingId
         ? { ...state.selectedFinding, disposition: action.disposition }
         : state.selectedFinding;
-      return { ...state, findings, selectedFinding, summary: recomputeSummary(findings) };
+      return {
+        ...state, findings, selectedFinding,
+        summary: recomputeSummary(findings),
+        scanTargets: recomputeScanTargets(findings, state.scans),
+      };
     }
     case 'SET_NOTES': {
       const findings = updateMockNotes(state.findings, action.findingId, action.notes);
@@ -137,6 +161,25 @@ function reducer(state: AppState, action: AppAction): AppState {
         : state.selectedFinding;
       return { ...state, findings, selectedFinding };
     }
+    case 'START_SCAN':
+      return {
+        ...state,
+        viewHistory: [...state.viewHistory, state.view],
+        targetPath: action.targetPath,
+        view: 'scanProgress',
+      };
+    case 'SELECT_SCAN_TARGET':
+      return {
+        ...state,
+        viewHistory: [...state.viewHistory, state.view],
+        selectedScanTargetId: action.scanTargetId,
+        view: 'findingList',
+      };
+    case 'CLEAR_SCAN_TARGET':
+      return {
+        ...state,
+        selectedScanTargetId: undefined,
+      };
     case 'BACK': {
       const history = [...state.viewHistory];
       const prev = history.pop() ?? 'dashboard';
@@ -151,9 +194,29 @@ function reducer(state: AppState, action: AppAction): AppState {
 
 function EditorPanel({ state, dispatch }: { state: AppState; dispatch: React.Dispatch<AppAction> }) {
   const navigate = (view: ViewState) => dispatch({ type: 'NAVIGATE', view });
-  const navigateDashboard = () => dispatch({ type: 'NAVIGATE', view: 'dashboard' });
+  const navigateDashboard = () => {
+    dispatch({ type: 'CLEAR_SCAN_TARGET' });
+    dispatch({ type: 'NAVIGATE', view: 'dashboard' });
+  };
   const navigateFindings = () => dispatch({ type: 'NAVIGATE', view: 'findingList' });
   const navigateScans = () => dispatch({ type: 'NAVIGATE', view: 'scanHistory' });
+
+  // Derive filtered data based on selected scan target
+  const selectedTarget = state.scanTargets.find(t => t.id === state.selectedScanTargetId);
+
+  const activeFindings = useMemo(() =>
+    state.selectedScanTargetId
+      ? state.findings.filter(f => f.scanTargetId === state.selectedScanTargetId)
+      : state.findings,
+    [state.findings, state.selectedScanTargetId]
+  );
+
+  const activeScans = useMemo(() =>
+    state.selectedScanTargetId
+      ? state.scans.filter(s => s.scanTargetId === state.selectedScanTargetId)
+      : state.scans,
+    [state.scans, state.selectedScanTargetId]
+  );
 
   const renderView = () => {
     switch (state.view) {
@@ -161,21 +224,26 @@ function EditorPanel({ state, dispatch }: { state: AppState; dispatch: React.Dis
         return (
           <DashboardView
             project={state.project}
+            scanTargets={state.scanTargets}
             scans={state.scans}
             findings={state.findings}
             summary={state.summary}
             onNavigate={navigate}
+            onStartScan={(targetPath) => dispatch({ type: 'START_SCAN', targetPath })}
+            onSelectScanTarget={(scanTargetId) => dispatch({ type: 'SELECT_SCAN_TARGET', scanTargetId })}
           />
         );
       case 'findingList':
         return (
           <FindingsView
-            findings={state.findings}
+            findings={activeFindings}
+            selectedTarget={selectedTarget}
             onSelectFinding={(findingId) => dispatch({ type: 'SELECT_FINDING', findingId })}
             onSetDisposition={(findingId, disposition) =>
               dispatch({ type: 'SET_DISPOSITION', findingId, disposition })
             }
             onNavigateDashboard={navigateDashboard}
+            onClearTarget={() => dispatch({ type: 'CLEAR_SCAN_TARGET' })}
           />
         );
       case 'findingDetail':
@@ -186,7 +254,7 @@ function EditorPanel({ state, dispatch }: { state: AppState; dispatch: React.Dis
         return (
           <FindingDetailView
             finding={state.selectedFinding}
-            findings={state.findings}
+            findings={activeFindings}
             onBack={() => dispatch({ type: 'BACK' })}
             onNavigateDashboard={navigateDashboard}
             onNavigateFindings={navigateFindings}
@@ -202,10 +270,16 @@ function EditorPanel({ state, dispatch }: { state: AppState; dispatch: React.Dis
       case 'scanHistory':
         return (
           <ScanHistoryView
-            scans={state.scans}
+            scans={activeScans}
+            selectedTarget={selectedTarget}
+            scanTargets={state.scanTargets}
+            workspaceRoot={state.project.rootPath}
             onSelectScan={(scanId) => dispatch({ type: 'VIEW_SCAN_DETAIL', scanId })}
             onNavigateDashboard={navigateDashboard}
             onNavigate={navigate}
+            onSelectScanTarget={(id) => dispatch({ type: 'SELECT_SCAN_TARGET', scanTargetId: id })}
+            onClearTarget={() => dispatch({ type: 'CLEAR_SCAN_TARGET' })}
+            onStartScan={(targetPath) => dispatch({ type: 'START_SCAN', targetPath })}
           />
         );
       case 'scanDetail': {
@@ -217,7 +291,7 @@ function EditorPanel({ state, dispatch }: { state: AppState; dispatch: React.Dis
         return (
           <ScanDetailView
             scan={scan}
-            findings={state.findings}
+            findings={state.findings.filter(f => f.scanTargetId === scan.scanTargetId)}
             onNavigateDashboard={navigateDashboard}
             onNavigateScans={navigateScans}
             onViewFindings={() => dispatch({ type: 'SELECT_SCAN', scanId: scan.id })}
@@ -227,6 +301,7 @@ function EditorPanel({ state, dispatch }: { state: AppState; dispatch: React.Dis
       case 'scanProgress':
         return (
           <ScanProgressView
+            targetPath={state.targetPath}
             onNavigateDashboard={navigateDashboard}
             onNavigateScans={navigateScans}
           />
@@ -271,7 +346,7 @@ function App() {
   }, []);
 
   if (state.context === 'sidebar') {
-    return <SidebarDashboard scans={state.scans} summary={state.summary} />;
+    return <SidebarDashboard scans={state.scans} summary={state.summary} scanTargets={state.scanTargets} />;
   }
 
   if (state.context === 'sink') {

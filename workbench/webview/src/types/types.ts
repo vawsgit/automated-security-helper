@@ -15,6 +15,7 @@ export interface Project {
 export interface ScanSummary {
   id: string;
   projectId: string;
+  scanTargetId: string;
   status: ScanStatus;
   startedAt: string;
   completedAt?: string;
@@ -60,6 +61,7 @@ export interface SuppressionData {
 export interface FindingRow {
   id: string;
   scanId: string;
+  scanTargetId: string;
   title: string;
   description: string;
   severity: Severity;
@@ -74,6 +76,17 @@ export interface FindingRow {
   firstDetectedAt: string;
   aiAnalysis: AiAnalysis | null;
   suppression: SuppressionData | null;
+}
+
+export interface ScanTarget {
+  id: string;
+  path: string;
+  displayName: string;
+  lastScannedAt?: string;
+  scanCount: number;
+  findingCount: number;
+  severityCounts: Record<Severity, number>;
+  triageSummary: DispositionSummary;
 }
 
 export interface DispositionSummary {

@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { registerAllCommands } from './commands/index';
+import { setFindingsPanelManagerRef } from './commands/scanCommands';
 import { ScanTreeProvider } from './providers/scanTreeProvider';
 import { SidebarWebviewProvider } from './providers/sidebarWebviewProvider';
 import { FindingsPanelManager } from './providers/findingsPanelManager';
@@ -19,6 +20,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Findings editor panel manager
   const findingsPanelManager = new FindingsPanelManager(context.extensionUri);
+  setFindingsPanelManagerRef(findingsPanelManager);
 
   // Kitchen Sink panel manager (dev only)
   const sinkPanelManager = new SinkPanelManager(context.extensionUri);

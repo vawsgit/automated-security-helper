@@ -10,7 +10,15 @@ export function setFindingsPanelManagerRef(manager: FindingsPanelManager): void 
 export function registerScanCommands(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.commands.registerCommand('ashWorkbench.startScan', () => {
-      vscode.window.showInformationMessage('ASH: Scan started (mock)');
+      const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+      if (!workspaceRoot) {
+        vscode.window.showWarningMessage('ASH: No workspace folder open');
+        return;
+      }
+      vscode.window.showInformationMessage(`ASH: Scanning workspace root ${workspaceRoot} (mock)`);
+      if (findingsPanelManager) {
+        findingsPanelManager.showFindings('scan-001', workspaceRoot);
+      }
     }),
     vscode.commands.registerCommand('ashWorkbench.cancelScan', () => {
       vscode.window.showInformationMessage('ASH: Scan cancelled (mock)');

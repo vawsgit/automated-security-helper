@@ -7,6 +7,7 @@ import { X } from 'lucide-react';
 import { useState } from 'react';
 
 interface ScanProgressViewProps {
+  targetPath?: string;
   onNavigateDashboard: () => void;
   onNavigateScans: () => void;
 }
@@ -22,10 +23,10 @@ const mockScanners = [
   { name: 'npm-audit', status: 'queued' as const },
 ];
 
-const mockLogLines = [
+const mockLogLines = (path: string) => [
   '[14:30:01] Starting ASH security scan...',
   '[14:30:01] Mode: local',
-  '[14:30:01] Source: /src',
+  `[14:30:01] Source: ${path}`,
   '[14:30:02] Running bandit...',
   '[14:30:14] bandit completed (3 findings)',
   '[14:30:14] Running semgrep...',
@@ -33,7 +34,7 @@ const mockLogLines = [
   '[14:30:59] Running checkov...',
 ];
 
-export function ScanProgressView({ onNavigateDashboard, onNavigateScans }: ScanProgressViewProps) {
+export function ScanProgressView({ targetPath, onNavigateDashboard, onNavigateScans }: ScanProgressViewProps) {
   const [logOpen, setLogOpen] = useState(false);
   const completed = mockScanners.filter(s => s.status === 'completed').length;
   const total = mockScanners.length;
@@ -55,7 +56,9 @@ export function ScanProgressView({ onNavigateDashboard, onNavigateScans }: ScanP
         </div>
 
         <h1 className="text-lg font-semibold">Security Scan in Progress</h1>
-        <p className="text-xs opacity-70">/src &middot; local mode</p>
+        <p className="text-xs opacity-70 font-mono truncate max-w-md" title={targetPath}>
+          {targetPath ?? '/src'} &middot; local mode
+        </p>
 
         {/* Elapsed time (static per KISS 6.2) */}
         <p className="text-2xl font-mono">2:15</p>
@@ -89,7 +92,7 @@ export function ScanProgressView({ onNavigateDashboard, onNavigateScans }: ScanP
                 border: '1px solid var(--border)',
               }}
             >
-              {mockLogLines.join('\n')}
+              {mockLogLines(targetPath ?? '/src').join('\n')}
             </pre>
           </CollapsibleContent>
         </Collapsible>

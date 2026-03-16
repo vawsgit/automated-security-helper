@@ -1,39 +1,36 @@
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { AppBreadcrumb } from './AppBreadcrumb';
 import { SummaryCard } from './SummaryCard';
 import { TriageProgressBar } from './TriageProgressBar';
-import { SeverityChart } from './SeverityChart';
+import { ScanTargetCard } from './ScanTargetCard';
+import { ScanTargetPicker } from './ScanTargetPicker';
 import { SeverityBadge } from './SeverityBadge';
-import { List, History, Play } from 'lucide-react';
-import type { Project, ScanSummary, FindingRow, DispositionSummary, Severity } from '../types/types';
+import { List, History, Play, FolderTree } from 'lucide-react';
+import type { Project, ScanTarget, ScanSummary, FindingRow, DispositionSummary, Severity } from '../types/types';
 
 interface DashboardViewProps {
   project: Project;
+  scanTargets: ScanTarget[];
   scans: ScanSummary[];
   findings: FindingRow[];
   summary: DispositionSummary;
   onNavigate: (view: 'findingList' | 'scanHistory') => void;
+  onStartScan: (targetPath: string) => void;
+  onSelectScanTarget: (scanTargetId: string) => void;
 }
 
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
-    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
-  });
-}
+export function DashboardView({
+  project, scanTargets, scans, findings, summary, onNavigate, onStartScan, onSelectScanTarget,
+}: DashboardViewProps) {
+  const [pickerOpen, setPickerOpen] = useState(false);
 
-function formatDuration(start: string, end?: string): string {
-  if (!end) return 'In progress';
-  const ms = new Date(end).getTime() - new Date(start).getTime();
-  const sec = Math.floor(ms / 1000);
-  const min = Math.floor(sec / 60);
-  const rem = sec % 60;
-  return `${min}m ${rem}s`;
-}
-
-export function DashboardView({ project, scans, findings, summary, onNavigate }: DashboardViewProps) {
-  const latestScan = scans.find(s => s.status === 'COMPLETED');
-  const severityCounts = latestScan?.severityCounts ?? { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0, INFO: 0 } as Record<Severity, number>;
+  const totalFindings = findings.length;
+  const severityCounts: Record<Severity, number> = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0, INFO: 0 };
+  for (const f of findings) {
+    severityCounts[f.severity]++;
+  }
 
   return (
     <div className="p-4 max-w-5xl mx-auto space-y-4">
@@ -43,20 +40,28 @@ export function DashboardView({ project, scans, findings, summary, onNavigate }:
           <AppBreadcrumb segments={[{ label: 'Dashboard' }]} />
           <p className="text-xs opacity-70">{project.name} &middot; {project.rootPath}</p>
         </div>
-        <Button size="sm">
+        <Button size="sm" onClick={() => setPickerOpen(true)}>
           <Play className="h-3.5 w-3.5 mr-1.5" />
           Run Scan
         </Button>
       </div>
 
+      <ScanTargetPicker
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        workspaceRoot={project.rootPath}
+        scanTargets={scanTargets}
+        onStartScan={onStartScan}
+      />
+
       <Separator />
 
-      {/* Row 1: Project Info + Latest Scan */}
-      <div className="grid grid-cols-2 gap-4">
-        <SummaryCard title="Project">
+      {/* Overall summary */}
+      <div className="grid grid-cols-3 gap-4">
+        <SummaryCard title="Total Findings">
           <div className="space-y-1">
-            <p className="text-2xl font-bold">{findings.length}</p>
-            <p className="text-xs opacity-70">Total findings</p>
+            <p className="text-2xl font-bold">{totalFindings}</p>
+            <p className="text-xs opacity-70">across {scanTargets.length} scan target{scanTargets.length !== 1 ? 's' : ''}</p>
             <div className="flex gap-2 mt-2">
               {(['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO'] as const).map(s =>
                 severityCounts[s] > 0 && (
@@ -70,38 +75,50 @@ export function DashboardView({ project, scans, findings, summary, onNavigate }:
           </div>
         </SummaryCard>
 
-        <SummaryCard title="Latest Scan">
-          {latestScan ? (
-            <div className="space-y-1">
-              <p className="text-sm font-medium">{formatDate(latestScan.startedAt)}</p>
-              <p className="text-xs opacity-70">
-                Duration: {formatDuration(latestScan.startedAt, latestScan.completedAt)}
-              </p>
-              <p className="text-xs opacity-70">
-                {latestScan.findingCount} findings &middot; {latestScan.sourceDirectory}
-              </p>
-            </div>
-          ) : (
-            <p className="text-sm opacity-50">No completed scans</p>
-          )}
+        <SummaryCard title="Scan Targets">
+          <div className="space-y-1">
+            <p className="text-2xl font-bold">{scanTargets.length}</p>
+            <p className="text-xs opacity-70">{scans.filter(s => s.status === 'COMPLETED').length} completed scans</p>
+          </div>
+        </SummaryCard>
+
+        <SummaryCard title="Triage Progress">
+          <TriageProgressBar counts={summary.counts} total={summary.total} />
+          <p className="text-xs opacity-70 mt-1">
+            {summary.total - summary.counts.PENDING} of {summary.total} triaged
+          </p>
         </SummaryCard>
       </div>
 
-      {/* Row 2: Triage Progress */}
-      <SummaryCard title="Triage Progress">
-        <TriageProgressBar counts={summary.counts} total={summary.total} />
-      </SummaryCard>
+      <Separator />
 
-      {/* Row 3: Severity Distribution */}
-      <SummaryCard title="Severity Distribution">
-        <SeverityChart counts={severityCounts} />
-      </SummaryCard>
+      {/* Scan targets */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <FolderTree className="h-4 w-4 opacity-60" />
+          <h3 className="text-sm font-semibold">Scan Targets</h3>
+          <span className="text-xs opacity-50">Click a target to view its findings</span>
+        </div>
+        <div className="grid gap-3">
+          {scanTargets.map(target => (
+            <ScanTargetCard
+              key={target.id}
+              target={target}
+              isWorkspaceRoot={target.path === project.rootPath}
+              onClick={() => onSelectScanTarget(target.id)}
+              onScan={() => onStartScan(target.path)}
+            />
+          ))}
+        </div>
+      </div>
 
-      {/* Row 4: Quick Actions */}
+      <Separator />
+
+      {/* Quick Actions */}
       <div className="flex gap-3">
         <Button size="sm" onClick={() => onNavigate('findingList')}>
           <List className="h-3.5 w-3.5 mr-1.5" />
-          View Findings
+          All Findings
         </Button>
         <Button size="sm" variant="outline" onClick={() => onNavigate('scanHistory')}>
           <History className="h-3.5 w-3.5 mr-1.5" />

@@ -1,16 +1,24 @@
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { AppBreadcrumb } from './AppBreadcrumb';
 import { ScanCard } from './ScanCard';
+import { ScanTargetPicker } from './ScanTargetPicker';
 import { ScannerProgress } from './ScannerProgress';
 import { Play, Eye, X } from 'lucide-react';
-import type { ScanSummary } from '../types/types';
+import type { ScanSummary, ScanTarget } from '../types/types';
 
 interface ScanHistoryViewProps {
   scans: ScanSummary[];
+  selectedTarget?: ScanTarget;
+  scanTargets: ScanTarget[];
+  workspaceRoot: string;
   onSelectScan: (scanId: string) => void;
   onNavigateDashboard: () => void;
   onNavigate: (view: 'scanProgress' | 'findingList') => void;
+  onSelectScanTarget: (scanTargetId: string) => void;
+  onClearTarget: () => void;
+  onStartScan: (targetPath: string) => void;
 }
 
 const mockScanners = [
@@ -24,7 +32,11 @@ const mockScanners = [
   { name: 'npm-audit', status: 'queued' as const },
 ];
 
-export function ScanHistoryView({ scans, onSelectScan, onNavigateDashboard, onNavigate }: ScanHistoryViewProps) {
+export function ScanHistoryView({
+  scans, selectedTarget, scanTargets, workspaceRoot, onSelectScan, onNavigateDashboard, onNavigate,
+  onSelectScanTarget, onClearTarget, onStartScan,
+}: ScanHistoryViewProps) {
+  const [pickerOpen, setPickerOpen] = useState(false);
   const activeScan = scans.find(s => s.status === 'RUNNING');
   const completedScans = scans.filter(s => s.status !== 'RUNNING');
 
@@ -35,15 +47,59 @@ export function ScanHistoryView({ scans, onSelectScan, onNavigateDashboard, onNa
         <div>
           <AppBreadcrumb segments={[
             { label: 'Dashboard', onClick: onNavigateDashboard },
+            ...(selectedTarget ? [{ label: selectedTarget.displayName }] : []),
             { label: 'Scans' },
           ]} />
-          <p className="text-xs opacity-70 mt-1">{scans.length} scans</p>
+          <div className="flex items-center gap-2 mt-1">
+            <p className="text-xs opacity-70">{scans.length} scans</p>
+            {selectedTarget && (
+              <button
+                className="text-xs px-2 py-0.5 rounded-full border opacity-60 hover:opacity-100 transition-opacity"
+                onClick={onClearTarget}
+              >
+                {selectedTarget.displayName} &times;
+              </button>
+            )}
+          </div>
         </div>
-        <Button size="sm">
+        <Button size="sm" onClick={() => setPickerOpen(true)}>
           <Play className="h-3.5 w-3.5 mr-1.5" />
           Run New Scan
         </Button>
       </div>
+
+      <ScanTargetPicker
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        workspaceRoot={workspaceRoot}
+        scanTargets={scanTargets}
+        onStartScan={onStartScan}
+      />
+
+      {/* Target filter tabs */}
+      {!selectedTarget && scanTargets.length > 1 && (
+        <div className="flex flex-wrap gap-1.5">
+          <span className="text-xs opacity-70 mr-1 self-center">Target:</span>
+          <Button
+            variant="default"
+            size="sm"
+            className="text-xs h-6 px-2"
+          >
+            All
+          </Button>
+          {scanTargets.map(t => (
+            <Button
+              key={t.id}
+              variant="outline"
+              size="sm"
+              className="text-xs h-6 px-2 opacity-60"
+              onClick={() => onSelectScanTarget(t.id)}
+            >
+              {t.displayName}
+            </Button>
+          ))}
+        </div>
+      )}
 
       {/* Active scan */}
       {activeScan && (

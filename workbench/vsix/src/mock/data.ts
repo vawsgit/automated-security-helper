@@ -9,7 +9,7 @@ const mockProject: Project = {
 const mockScans: ScanSummary[] = [
   {
     id: 'scan-001',
-    projectId: 'proj-001',
+    projectId: 'proj-001', scanTargetId: 'st-001',
     status: 'COMPLETED',
     startedAt: '2026-03-12T14:30:00Z',
     completedAt: '2026-03-12T14:35:22Z',
@@ -19,7 +19,7 @@ const mockScans: ScanSummary[] = [
   },
   {
     id: 'scan-002',
-    projectId: 'proj-001',
+    projectId: 'proj-001', scanTargetId: 'st-001',
     status: 'COMPLETED',
     startedAt: '2026-03-11T10:00:00Z',
     completedAt: '2026-03-11T10:04:15Z',
@@ -29,7 +29,7 @@ const mockScans: ScanSummary[] = [
   },
   {
     id: 'scan-003',
-    projectId: 'proj-001',
+    projectId: 'proj-001', scanTargetId: 'st-001',
     status: 'FAILED',
     startedAt: '2026-03-10T16:45:00Z',
     sourceDirectory: '/src',
@@ -38,7 +38,7 @@ const mockScans: ScanSummary[] = [
   },
   {
     id: 'scan-004',
-    projectId: 'proj-001',
+    projectId: 'proj-001', scanTargetId: 'st-001',
     status: 'RUNNING',
     startedAt: '2026-03-12T15:00:00Z',
     sourceDirectory: '/src',
@@ -49,7 +49,7 @@ const mockScans: ScanSummary[] = [
 
 const mockFindings: FindingRow[] = [
   {
-    id: 'f-001', scanId: 'scan-001',
+    id: 'f-001', scanId: 'scan-001', scanTargetId: 'st-001',
     title: 'Hard-coded AWS access key',
     description: 'A hard-coded AWS access key was detected. This could allow unauthorized access to AWS resources if the source code is exposed.',
     severity: 'CRITICAL', disposition: 'PENDING', scanner: 'detect-secrets', ruleId: 'AWSKeyDetector',
@@ -58,7 +58,7 @@ const mockFindings: FindingRow[] = [
     notes: '', firstDetectedAt: '2026-03-11T10:02:00Z', aiAnalysis: null, suppression: null,
   },
   {
-    id: 'f-002', scanId: 'scan-001',
+    id: 'f-002', scanId: 'scan-001', scanTargetId: 'st-001',
     title: 'SQL injection vulnerability',
     description: 'User input is concatenated directly into a SQL query string without sanitization, enabling SQL injection attacks.',
     severity: 'CRITICAL', disposition: 'FIX', scanner: 'semgrep', ruleId: 'javascript.lang.security.audit.sqli',
@@ -67,7 +67,7 @@ const mockFindings: FindingRow[] = [
     notes: '', firstDetectedAt: '2026-03-11T10:02:00Z', aiAnalysis: null, suppression: null,
   },
   {
-    id: 'f-003', scanId: 'scan-001',
+    id: 'f-003', scanId: 'scan-001', scanTargetId: 'st-001',
     title: 'Cross-site scripting (XSS) via innerHTML',
     description: 'Setting innerHTML with unsanitized user data can lead to XSS attacks.',
     severity: 'HIGH', disposition: 'PENDING', scanner: 'semgrep', ruleId: 'javascript.browser.security.innerHTML',
@@ -76,7 +76,7 @@ const mockFindings: FindingRow[] = [
     notes: '', firstDetectedAt: '2026-03-11T10:02:00Z', aiAnalysis: null, suppression: null,
   },
   {
-    id: 'f-004', scanId: 'scan-001',
+    id: 'f-004', scanId: 'scan-001', scanTargetId: 'st-001',
     title: 'Insecure HTTP used for API endpoint',
     description: 'API endpoint uses HTTP instead of HTTPS, transmitting data in cleartext.',
     severity: 'HIGH', disposition: 'FIX', scanner: 'semgrep', ruleId: 'javascript.lang.security.insecure-transport',
@@ -85,7 +85,7 @@ const mockFindings: FindingRow[] = [
     notes: '', firstDetectedAt: '2026-03-11T10:02:00Z', aiAnalysis: null, suppression: null,
   },
   {
-    id: 'f-005', scanId: 'scan-001',
+    id: 'f-005', scanId: 'scan-001', scanTargetId: 'st-001',
     title: 'Missing authentication on admin route',
     description: 'Admin API route lacks authentication middleware, allowing unauthenticated access.',
     severity: 'HIGH', disposition: 'PENDING', scanner: 'semgrep', ruleId: 'javascript.express.security.missing-auth',
@@ -94,7 +94,7 @@ const mockFindings: FindingRow[] = [
     notes: '', firstDetectedAt: '2026-03-12T14:32:00Z', aiAnalysis: null, suppression: null,
   },
   {
-    id: 'f-006', scanId: 'scan-001',
+    id: 'f-006', scanId: 'scan-001', scanTargetId: 'st-001',
     title: 'Known vulnerable dependency: lodash@4.17.20',
     description: 'lodash version 4.17.20 has known prototype pollution vulnerability (CVE-2021-23337).',
     severity: 'HIGH', disposition: 'DEFER', scanner: 'grype', ruleId: 'CVE-2021-23337',
@@ -103,7 +103,7 @@ const mockFindings: FindingRow[] = [
     notes: '', firstDetectedAt: '2026-03-11T10:02:00Z', aiAnalysis: null, suppression: null,
   },
   {
-    id: 'f-007', scanId: 'scan-001',
+    id: 'f-007', scanId: 'scan-001', scanTargetId: 'st-001',
     title: 'Checkov: S3 bucket without encryption',
     description: 'S3 bucket resource does not have server-side encryption enabled.',
     severity: 'MEDIUM', disposition: 'FIX', scanner: 'checkov', ruleId: 'CKV_AWS_19',
@@ -112,7 +112,7 @@ const mockFindings: FindingRow[] = [
     notes: '', firstDetectedAt: '2026-03-11T10:02:00Z', aiAnalysis: null, suppression: null,
   },
   {
-    id: 'f-008', scanId: 'scan-001',
+    id: 'f-008', scanId: 'scan-001', scanTargetId: 'st-001',
     title: 'Weak cryptographic algorithm: MD5',
     description: 'MD5 is cryptographically broken and should not be used for security purposes.',
     severity: 'MEDIUM', disposition: 'PENDING', scanner: 'bandit', ruleId: 'B303',
@@ -121,7 +121,7 @@ const mockFindings: FindingRow[] = [
     notes: '', firstDetectedAt: '2026-03-12T14:32:00Z', aiAnalysis: null, suppression: null,
   },
   {
-    id: 'f-009', scanId: 'scan-001',
+    id: 'f-009', scanId: 'scan-001', scanTargetId: 'st-001',
     title: 'CloudFormation: Security group allows ingress from 0.0.0.0/0',
     description: 'Security group rule allows inbound traffic from any IP address.',
     severity: 'MEDIUM', disposition: 'SUPPRESS', scanner: 'cfn-nag', ruleId: 'W9',
@@ -130,7 +130,7 @@ const mockFindings: FindingRow[] = [
     notes: '', firstDetectedAt: '2026-03-11T10:02:00Z', aiAnalysis: null, suppression: null,
   },
   {
-    id: 'f-010', scanId: 'scan-001',
+    id: 'f-010', scanId: 'scan-001', scanTargetId: 'st-001',
     title: 'Insecure random number generator',
     description: 'Math.random() is not cryptographically secure. Use crypto.getRandomValues() for security-sensitive operations.',
     severity: 'MEDIUM', disposition: 'PENDING', scanner: 'semgrep', ruleId: 'javascript.lang.security.insecure-random',
@@ -139,7 +139,7 @@ const mockFindings: FindingRow[] = [
     notes: '', firstDetectedAt: '2026-03-12T14:32:00Z', aiAnalysis: null, suppression: null,
   },
   {
-    id: 'f-011', scanId: 'scan-001',
+    id: 'f-011', scanId: 'scan-001', scanTargetId: 'st-001',
     title: 'CDK: RDS instance without deletion protection',
     description: 'RDS instance does not have deletion protection enabled.',
     severity: 'MEDIUM', disposition: 'DEFER', scanner: 'cdk-nag', ruleId: 'AwsSolutions-RDS10',
@@ -148,7 +148,7 @@ const mockFindings: FindingRow[] = [
     notes: '', firstDetectedAt: '2026-03-11T10:02:00Z', aiAnalysis: null, suppression: null,
   },
   {
-    id: 'f-012', scanId: 'scan-001',
+    id: 'f-012', scanId: 'scan-001', scanTargetId: 'st-001',
     title: 'npm audit: high severity in express',
     description: 'express package has a known high-severity vulnerability in path-to-regexp dependency.',
     severity: 'MEDIUM', disposition: 'PENDING', scanner: 'npm-audit', ruleId: 'GHSA-9wv6-86v2-598j',
@@ -157,7 +157,7 @@ const mockFindings: FindingRow[] = [
     notes: '', firstDetectedAt: '2026-03-12T14:32:00Z', aiAnalysis: null, suppression: null,
   },
   {
-    id: 'f-013', scanId: 'scan-001',
+    id: 'f-013', scanId: 'scan-001', scanTargetId: 'st-001',
     title: 'Console.log left in production code',
     description: 'Console.log statements should be removed from production code to prevent information leakage.',
     severity: 'LOW', disposition: 'FIX', scanner: 'semgrep', ruleId: 'javascript.lang.best-practice.no-console',
@@ -166,7 +166,7 @@ const mockFindings: FindingRow[] = [
     notes: '', firstDetectedAt: '2026-03-11T10:02:00Z', aiAnalysis: null, suppression: null,
   },
   {
-    id: 'f-014', scanId: 'scan-001',
+    id: 'f-014', scanId: 'scan-001', scanTargetId: 'st-001',
     title: 'Missing CORS configuration',
     description: 'Express app does not configure CORS headers. Consider adding explicit CORS policy.',
     severity: 'LOW', disposition: 'PENDING', scanner: 'semgrep', ruleId: 'javascript.express.best-practice.cors',
@@ -175,7 +175,7 @@ const mockFindings: FindingRow[] = [
     notes: '', firstDetectedAt: '2026-03-12T14:32:00Z', aiAnalysis: null, suppression: null,
   },
   {
-    id: 'f-015', scanId: 'scan-001',
+    id: 'f-015', scanId: 'scan-001', scanTargetId: 'st-001',
     title: 'Hardcoded port number',
     description: 'Port number is hardcoded. Use environment variables for configuration.',
     severity: 'LOW', disposition: 'SUPPRESS', scanner: 'semgrep', ruleId: 'javascript.lang.best-practice.hardcoded-config',
@@ -184,7 +184,7 @@ const mockFindings: FindingRow[] = [
     notes: '', firstDetectedAt: '2026-03-11T10:02:00Z', aiAnalysis: null, suppression: null,
   },
   {
-    id: 'f-016', scanId: 'scan-001',
+    id: 'f-016', scanId: 'scan-001', scanTargetId: 'st-001',
     title: 'Unused npm dependency: moment',
     description: 'The moment package is declared as a dependency but not imported anywhere in the codebase.',
     severity: 'LOW', disposition: 'PENDING', scanner: 'npm-audit', ruleId: 'unused-dependency',
@@ -193,7 +193,7 @@ const mockFindings: FindingRow[] = [
     notes: '', firstDetectedAt: '2026-03-12T14:32:00Z', aiAnalysis: null, suppression: null,
   },
   {
-    id: 'f-017', scanId: 'scan-001',
+    id: 'f-017', scanId: 'scan-001', scanTargetId: 'st-001',
     title: 'TODO comment references security fix',
     description: 'A TODO comment references a pending security fix that should be addressed.',
     severity: 'INFO', disposition: 'PENDING', scanner: 'semgrep', ruleId: 'javascript.lang.best-practice.todo-security',
@@ -202,7 +202,7 @@ const mockFindings: FindingRow[] = [
     notes: '', firstDetectedAt: '2026-03-11T10:02:00Z', aiAnalysis: null, suppression: null,
   },
   {
-    id: 'f-018', scanId: 'scan-001',
+    id: 'f-018', scanId: 'scan-001', scanTargetId: 'st-001',
     title: 'Permissive file permissions in Dockerfile',
     description: 'Dockerfile sets overly permissive file permissions (777).',
     severity: 'INFO', disposition: 'PENDING', scanner: 'checkov', ruleId: 'CKV_DOCKER_7',

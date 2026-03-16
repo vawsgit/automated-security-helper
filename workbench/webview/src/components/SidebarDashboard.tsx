@@ -3,15 +3,16 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { severityColor, dispositionColor } from '@/lib/theme-colors';
 import { postMessage } from '../hooks/useVSCodeAPI';
-import { Play, List } from 'lucide-react';
-import type { ScanSummary, DispositionSummary, Severity, Disposition } from '../types/types';
+import { Play, List, FolderOpen } from 'lucide-react';
+import type { ScanSummary, ScanTarget, DispositionSummary, Severity, Disposition } from '../types/types';
 
 interface SidebarDashboardProps {
   scans: ScanSummary[];
   summary: DispositionSummary;
+  scanTargets: ScanTarget[];
 }
 
-export function SidebarDashboard({ scans, summary }: SidebarDashboardProps) {
+export function SidebarDashboard({ scans, summary, scanTargets }: SidebarDashboardProps) {
   const activeScan = scans.find(s => s.status === 'RUNNING');
   const latestScan = scans.find(s => s.status === 'COMPLETED');
   const triaged = summary.total - summary.counts.PENDING;
@@ -27,10 +28,10 @@ export function SidebarDashboard({ scans, summary }: SidebarDashboardProps) {
       <Button
         className="w-full"
         size="sm"
-        onClick={() => postMessage({ type: 'startScan' })}
+        onClick={() => postMessage({ type: 'startScan', payload: { targetPath: '/home/user/projects/my-web-app' } })}
       >
         <Play className="h-3.5 w-3.5 mr-1.5" />
-        Run Scan
+        Scan Workspace
       </Button>
 
       {/* Active scan indicator */}
@@ -52,6 +53,24 @@ export function SidebarDashboard({ scans, summary }: SidebarDashboardProps) {
           </div>
         </>
       )}
+
+      <Separator />
+
+      {/* Scan targets summary */}
+      <div>
+        <h3 className="text-xs font-semibold mb-2 uppercase tracking-wide opacity-70">Scan Targets</h3>
+        <div className="space-y-2">
+          {scanTargets.map(target => (
+            <div key={target.id} className="flex items-center justify-between text-xs">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <FolderOpen className="h-3 w-3 shrink-0 opacity-50" />
+                <span className="truncate">{target.displayName}</span>
+              </div>
+              <span className="opacity-50 shrink-0 ml-2">{target.findingCount}</span>
+            </div>
+          ))}
+        </div>
+      </div>
 
       <Separator />
 
@@ -110,7 +129,7 @@ export function SidebarDashboard({ scans, summary }: SidebarDashboardProps) {
           onClick={() => postMessage({ type: 'openFindings', payload: { scanId: latestScan.id } })}
         >
           <List className="h-3.5 w-3.5 mr-1.5" />
-          View Findings ({latestScan.findingCount})
+          View Findings ({summary.total})
         </Button>
       )}
     </div>
