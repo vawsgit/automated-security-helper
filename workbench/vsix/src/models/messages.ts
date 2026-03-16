@@ -17,6 +17,6 @@ export type WebviewToExtMessage =
   | { type: 'selectFinding'; payload: { findingId: string } }
   | { type: 'setDisposition'; payload: { findingId: string; disposition: Disposition } }
   | { type: 'navigateToCode'; payload: { filePath: string; startLine: number } }
-  | { type: 'startScan' }
+  | { type: 'startScan'; payload: { targetPath: string } }
   | { type: 'openFindings'; payload: { scanId: string } }
   | { type: 'openSink' };

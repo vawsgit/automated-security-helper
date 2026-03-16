@@ -52,6 +52,10 @@
       {
         "command": "ashWorkbench.openKitchenSink",
         "title": "ASH: Open Kitchen Sink"
+      },
+      {
+        "command": "ashWorkbench.scanFolder",
+        "title": "ASH: Run Security Scan"
       }
     ],
     "menus": {
@@ -60,6 +64,13 @@
           "command": "ashWorkbench.openWorkbench",
           "when": "view == ashWorkbench.scanHistory",
           "group": "navigation"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "ashWorkbench.scanFolder",
+          "when": "explorerResourceIsFolder",
+          "group": "ashWorkbench@1"
         }
       ]
     }
