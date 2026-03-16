@@ -198,4 +198,4 @@ This means the Kitchen Sink shows components as they actually render in the user
 ## Related
 
 - See [CLAUDE.md](./CLAUDE.md) for conventions.
-- Developer docs: `docs/docs/developer-docs/architecture/webview-application.md` (dual-context rendering, theme integration, extending components).
+- Developer docs: `docs/docs/developer-docs/webview/README.md` (dual-context rendering, theme integration, extending components).

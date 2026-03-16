@@ -9,6 +9,6 @@ React 19 + ShadCN/ui + Tailwind CSS v4 WebView app for the ASH Workbench VS Code
 - Kitchen Sink (`pages/sink/`) is the living component reference -- add a demo file + registry entry for every new UI component. Open via `ASH: Open Kitchen Sink` command (dev builds only).
 - `.npmrc` sets `legacy-peer-deps=true` to resolve `@tailwindcss/vite` + Vite 8 peer conflict.
 - `@` import alias resolves to `src/` (configured in `tsconfig.app.json`, `tsconfig.json`, and `vite.config.ts`).
-- Docs: `docs/docs/developer-docs/architecture/webview-application.md` (dual-context rendering, theme integration, components).
+- Docs: `docs/docs/developer-docs/webview/README.md` (dual-context rendering, theme integration, components).
 
 See README.md for file inventory, ShadCN component catalog, kitchen sink guide, and build commands.

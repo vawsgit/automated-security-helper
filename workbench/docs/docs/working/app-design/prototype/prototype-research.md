@@ -71,9 +71,9 @@ The `webview/` directory **does not exist**. It must be created from scratch.
 
 The design documents provide comprehensive specifications that the prototype must align with:
 
-- **Functional Design** (`docs/docs/developer-docs/architecture/design/functional-design.md`) -- Defines POC scope, user stories, data model, UI screens, interaction flows
-- **Technical Design** (`docs/docs/developer-docs/architecture/design/technical-design.md`) -- Defines architecture, module structure, database layer, WebView build system, message protocol
-- **Project Synopsis** (`docs/docs/developer-docs/architecture/design/project-synopsis.md`) -- Concise overview for fast context
+- **Functional Design** (`docs/docs/developer-docs/architecture/software-design-specification/functional-design.md`) -- Defines POC scope, user stories, data model, UI screens, interaction flows
+- **Technical Design** (`docs/docs/developer-docs/architecture/software-design-specification/technical-design.md`) -- Defines architecture, module structure, database layer, WebView build system, message protocol
+- **Project Synopsis** (`docs/docs/developer-docs/architecture/software-design-specification/README.md`) -- Concise overview for fast context
 
 ### 2.3 Gap Analysis: Scaffold vs. Design
 

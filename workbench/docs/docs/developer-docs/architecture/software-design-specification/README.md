@@ -1,8 +1,8 @@
 ---
-title: Project Synopsis
+title: Overview
 ---
 
-# ASH Workbench: Project Synopsis
+# Software Design Specification
 
 A concise overview of what ASH Workbench is, why it exists, and what it does. Intended as a fast-read context document for AI processes, new contributors, and anyone who needs to understand the project without reading the full design specifications.
 

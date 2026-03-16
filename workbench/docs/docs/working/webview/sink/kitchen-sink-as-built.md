@@ -9,386 +9,335 @@ sidebar_position: 3
 
 ## Overview
 
-The Kitchen Sink is a **development-only** component showcase and living style guide that renders at the `/sink` route. It serves as a central reference for every UI primitive and page-level pattern available in the design system, allowing developers to visually inspect, theme, and interact with components without navigating the production application.
+The Kitchen Sink is a **development-only** component showcase that renders inside a dedicated VS Code editor panel. It serves as a living reference for every UI primitive and app-specific component available in the webview design system, allowing developers to visually inspect components against the real VS Code theme (dark, light, or high-contrast) without navigating the production application.
 
-The feature is completely tree-shaken from production builds via Vite's `import.meta.env.DEV` guard. It has zero impact on production bundle size. In development, it provides a self-contained environment with its own layout, sidebar navigation, breadcrumbs, and a real-time theme-switching system that exercises every visual dimension of the design system (color, size, font, radius).
+The sink is activated via a `postMessage` context switch — the extension host sends `{ type: 'init', payload: { context: 'sink' } }` to the shared webview, which renders `SinkPage` instead of the production UI. The command is gated behind `ExtensionMode.Development`, so it is invisible in published builds.
 
-The Kitchen Sink houses **55 individual component demos** and **5 full-page demos** registered through a central component registry. Every demo is isolated with its own error boundary so a failure in one component never crashes the entire showcase.
+The Kitchen Sink currently houses **22 component demos** (19 ShadCN primitives + 3 app-specific components) registered through a central registry. Every demo is isolated with its own error boundary so a failure in one component never crashes the entire showcase.
 
 ## Architecture
 
-### Routing
+### Context-Driven Rendering (No Router)
 
-The sink routes are conditionally injected into the application's route tree:
-
-```
-/sink            -> Layout (standalone layout wrapper)
-  index          -> IndexPage (all component cards in a grid)
-  :name          -> DetailPage (single component detail view)
-```
-
-The conditional inclusion is handled at the route definition level:
-
-```typescript
-const sinkRoutes: RouteObject[] = import.meta.env.DEV
-  ? [{ path: '/sink', lazy: () => import('pages/sink/Layout'), children: [...] }]
-  : []
-```
-
-All three route modules use named `Component` exports with `displayName` set, following the project's lazy-loading convention for React Router.
-
-### Layout Hierarchy
+The webview app does **not** use React Router. Instead, the extension host controls which UI renders by sending an `init` message with a `context` discriminator:
 
 ```mermaid
-graph TD
-    A[Layout] --> B[Sidebar - collapsible left]
-    A --> C[Header bar - sticky top]
-    A --> D[Outlet - content area]
-    B --> B1[Back to App link]
-    B --> B2[TeamSwitcher - demo data]
-    B --> B3[Search input]
-    B --> B4[Collapsible nav groups]
-    B4 --> B4a[Components - registry:ui items]
-    B4 --> B4b[Pages - registry:page items]
-    B --> B5[NavUser footer]
-    C --> C1[SidebarTrigger]
-    C --> C2[Breadcrumbs]
-    C --> C3[ModeToggle - dark/light]
-    C --> C4[ThemeSelector]
-    D --> D1[IndexPage]
-    D --> D2[DetailPage]
+sequenceDiagram
+    participant Ext as Extension Host
+    participant WV as WebView (App.tsx)
+
+    Ext->>WV: postMessage({ type: 'init', payload: { context: 'sink' } })
+    WV->>WV: dispatch MESSAGE -> state.context = 'sink'
+    WV->>WV: render SinkPage
 ```
 
-The layout is standalone — it does **not** reuse the main application layout. This separation allows the sink to demonstrate sidebar patterns, theme switching, and navigation independently.
+`App.tsx` uses a `useReducer` to track `context`, which can be `'sidebar'`, `'editorPanel'`, `'sink'`, or `'unknown'`. When `context === 'sink'`, it renders `<SinkPage />` directly — no routing, no lazy loading.
+
+### Entry Points (Two Paths)
+
+There are two ways to open the Kitchen Sink:
+
+1. **Command Palette:** `ASH: Open Kitchen Sink` (`ashWorkbench.openKitchenSink`) — registered in `extension.ts:27` only when `extensionMode === Development`. Creates a new `WebviewPanel` via `SinkPanelManager`.
+
+2. **Sidebar message:** The sidebar webview can send `{ type: 'openSink' }`, which the `SidebarWebviewProvider` handles at `sidebarWebviewProvider.ts:61` by calling `sinkPanelManager.show()`.
+
+Both paths end at `SinkPanelManager.show()`, which creates (or reveals) a panel and posts the `init` message with `context: 'sink'`.
 
 ### Component Registry
 
-The registry is the single source of truth for all showcased components. Each entry contains:
+The registry (`sink-registry.ts`) is the single source of truth for all showcased components:
 
 ```typescript
-type ComponentConfig = {
-  name: string                         // Display name
-  component: React.ComponentType       // The demo component
-  className?: string                   // Optional wrapper class
-  type: 'registry:ui' | 'registry:page'  // Rendering mode
-  href: string                         // Route path
-  label?: string                       // Badge label (e.g., "New")
-}
+type SinkComponentConfig = {
+  name: string;                    // Display name
+  component: ComponentType;        // The demo component
+  className?: string;              // Optional wrapper class override
+  type: 'ui' | 'app';             // Category: ShadCN primitive vs app-specific
+  label?: string;                  // Optional badge label (e.g., "New")
+};
 ```
 
-Components typed as `registry:ui` render inside card wrappers on the index page. Components typed as `registry:page` get full-viewport rendering on their detail page (no padding wrapper).
+Components typed as `ui` are ShadCN design system primitives. Components typed as `app` are ASH Workbench-specific components (e.g., `SeverityBadge`, `DispositionBadge`).
 
 ### Data Flow
 
 ```mermaid
 graph TD
-    A[componentRegistry] --> B[IndexPage]
-    A --> C[DetailPage]
-    A --> D[Sidebar]
-    B -->|filter registry:ui| E[CardWrapper per demo]
-    C -->|lookup by :name param| F[Single demo render]
-    D -->|group by type| G[Nav links]
-    H[ActiveThemeProvider] --> I[ThemeSelector]
-    I -->|setActiveTheme| J[document.body class toggle]
+    A[sinkRegistry] --> B[SinkPage]
+    B -->|filter by searchFilter| C[ComponentWrapper per demo]
+    D[SinkHeader] -->|onSearchChange| B
+    C --> E[ErrorBoundary]
+    E --> F[Demo Component]
 ```
+
+All rendering is synchronous and local. No API calls, no state management beyond the search filter, no communication back to the extension host.
 
 ## File Inventory
 
-### Core Pages
+### Extension Host (vsix/)
 
 | File | Responsibility |
 |------|---------------|
-| `pages/sink/Layout.tsx` | Standalone layout with sidebar, header, breadcrumbs, theme controls |
-| `pages/sink/IndexPage.tsx` | Index page — renders all `registry:ui` demos in a responsive card grid |
-| `pages/sink/DetailPage.tsx` | Detail page — renders a single component by `:name` URL param |
-| `pages/sink/component-registry.ts` | Central registry mapping keys to demo components, types, routes, labels |
+| `vsix/src/providers/sinkPanelManager.ts` | Creates/reveals the Kitchen Sink `WebviewPanel`, sends `init` message with `context: 'sink'` |
+| `vsix/src/extension.ts:24-31` | Registers `ashWorkbench.openKitchenSink` command (dev mode only) |
+| `vsix/src/providers/sidebarWebviewProvider.ts:61-64` | Handles `openSink` message from sidebar webview |
+| `vsix/src/providers/webviewHtml.ts` | Generates webview HTML shell (shared across all webview contexts) |
+| `vsix/src/models/messages.ts:22` | Declares `openSink` message type |
+| `vsix/package.json:52-55` | Declares `ashWorkbench.openKitchenSink` command in contributes |
 
-### Layout Components
-
-| File | Responsibility |
-|------|---------------|
-| `pages/sink/components/sidebar.tsx` | Collapsible sidebar with search, team switcher, component nav groups |
-| `pages/sink/components/breadcrumbs.tsx` | Context-aware breadcrumbs: "Kitchen Sink" at root, "Kitchen Sink then Name" on detail |
-| `pages/sink/components/theme-selector.tsx` | Multi-dimension theme picker (size, color, font, radius) |
-| `pages/sink/components/component-wrapper.tsx` | Card wrapper with error boundary, name header, and content area |
-| `pages/sink/components/nav-user.tsx` | Sidebar footer with user avatar and dropdown menu (demo data) |
-| `pages/sink/components/team-switcher.tsx` | Sidebar team selector with dropdown (demo data) |
-
-### Component Demos (55 files)
-
-All located in `pages/sink/components/`. Each file exports a single named demo component. Listed by functional category:
-
-**Form Inputs:**
-`input-demo`, `textarea-demo`, `select-demo`, `native-select-demo`, `radio-group-demo`, `checkbox-demo`, `switch-demo`, `input-otp-demo`, `input-group-demo`, `combobox-demo`, `date-picker-demo`, `slider-demo`, `calendar-demo`
-
-**Buttons and Toggles:**
-`button-demo`, `button-group-demo`, `toggle-demo`, `toggle-group-demo`
-
-**Layout and Structure:**
-`card-demo`, `separator-demo`, `aspect-ratio-demo`, `scroll-area-demo`, `resizable-demo`, `collapsible-demo`, `accordion-demo`, `tabs-demo`
-
-**Overlays and Popovers:**
-`dialog-demo`, `drawer-demo`, `alert-dialog-demo`, `popover-demo`, `hover-card-demo`, `sheet-demo`, `tooltip-demo`
-
-**Navigation:**
-`breadcrumb-demo`, `navigation-menu-demo`, `menubar-demo`, `pagination-demo`
-
-**Data Display:**
-`table-demo`, `badge-demo`, `avatar-demo`, `chart-demo` (with sub-demos: `chart-area-demo`, `chart-bar-demo`, `chart-bar-mixed`, `chart-line-demo`)
-
-**Feedback:**
-`alert-demo`, `progress-demo`, `skeleton-demo`, `spinner-demo`, `sonner-demo`
-
-**Menus:**
-`context-menu-demo`, `dropdown-menu-demo`, `command-demo`
-
-**Other:**
-`label-demo`, `kbd-demo`, `item-demo`, `empty-demo`, `field-demo`, `form-demo`, `carousel-demo`
-
-Components marked with `label: 'New'` in the registry: Button Group, Empty, Field, Input Group, Item, Kbd, Native Select, Spinner.
-
-### Page Demos (5 pages)
-
-| Page | Directory | Key Files |
-|------|-----------|-----------|
-| **Forms** | `pages/sink/pages/forms/` | FormsPage, shipping-form, appearance-settings, chat-settings, display-settings, notion-prompt-form, ship-registration-form |
-| **React Hook Form** | `pages/sink/pages/react-hook-form/` | ReactHookFormPage, example-form |
-| **Tasks** | `pages/sink/pages/tasks/` | TasksPage, components/ (columns, data-table, pagination, toolbar, faceted-filter, view-options, row-actions, column-header), data/ (schema, data, tasks.json) |
-| **Playground** | `pages/sink/pages/playground/` | PlaygroundPage, components/ (model-selector, temperature-selector, maxlength-selector, top-p-selector, preset-selector, preset-save, preset-share, preset-actions, code-viewer), data/ (models, presets) |
-| **Chat** | `pages/sink/pages/chat/` | ChatPage |
-
-### Shared Infrastructure
+### WebView — Core Pages
 
 | File | Responsibility |
 |------|---------------|
-| `components/active-theme.tsx` | `ActiveThemeProvider` context + `useActiveTheme` hook — manages theme class on `document.body`, persists to localStorage |
-| `components/mode-toggle.tsx` | Dark/light mode toggle (shared with main app) |
-| `components/assistant-ui/thread.tsx` | Chat thread component (shared with main app, used by Chat page demo) |
+| `webview/src/App.tsx:104-106` | Context switch: renders `<SinkPage />` when `state.context === 'sink'` |
+| `webview/src/pages/sink/SinkPage.tsx` | Main page: search state, filters registry, renders grid of `ComponentWrapper` |
+| `webview/src/pages/sink/sink-registry.ts` | Central registry mapping keys to demo components with metadata |
+| `webview/src/pages/sink/components/sink-header.tsx` | Sticky header with title, separator, and search input |
+| `webview/src/pages/sink/components/component-wrapper.tsx` | Card wrapper with error boundary, name header, and content area |
+
+### Component Demos (22 files)
+
+All located in `webview/src/pages/sink/demos/`. Each file exports a single named demo function.
+
+**ShadCN Primitives (19):**
+
+| Demo | ShadCN Components Exercised |
+|------|---------------------------|
+| `accordion-demo.tsx` | Accordion, AccordionItem, AccordionTrigger, AccordionContent |
+| `alert-demo.tsx` | Alert, AlertTitle, AlertDescription (default + destructive + custom amber) |
+| `badge-demo.tsx` | Badge (all variants: default, secondary, destructive, outline, pill counters) |
+| `button-demo.tsx` | Button (all variants x 3 sizes + icon buttons + disabled) |
+| `card-demo.tsx` | Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter (7 layout combinations) |
+| `checkbox-demo.tsx` | Checkbox |
+| `dialog-demo.tsx` | Dialog with form + Dialog with scrollable content |
+| `dropdown-menu-demo.tsx` | DropdownMenu with label, items, separator |
+| `input-demo.tsx` | Input (14 HTML input types: email, text, password, number, file, tel, url, search, date, datetime-local, month, time, week + disabled) |
+| `label-demo.tsx` | Label with Checkbox, Input, disabled Input, Textarea |
+| `progress-demo.tsx` | Progress (animated + 4 static values) |
+| `select-demo.tsx` | Select with groups + large list (50 items) + disabled |
+| `separator-demo.tsx` | Separator (horizontal + vertical) |
+| `skeleton-demo.tsx` | Skeleton (avatar + text lines + 3 card placeholders) |
+| `switch-demo.tsx` | Switch (default + custom color + card-style label wrapper) |
+| `table-demo.tsx` | Table with header, body, footer, caption (7-row invoice data) |
+| `tabs-demo.tsx` | Tabs |
+| `textarea-demo.tsx` | Textarea |
+| `tooltip-demo.tsx` | Tooltip (default + 4 placement sides + icon trigger) |
+
+**App-Specific Components (3):**
+
+| Demo | Component | Source |
+|------|-----------|--------|
+| `severity-badge-demo.tsx` | `SeverityBadge` | `components/SeverityBadge.tsx` — renders all 5 ASH severity levels (CRITICAL, HIGH, MEDIUM, LOW, INFO) |
+| `disposition-badge-demo.tsx` | `DispositionBadge` | `components/DispositionBadge.tsx` — renders all 4 disposition states (PENDING, FIX, SUPPRESS, DEFER) |
+| `tasks-demo.tsx` | TanStack React Table | Inline data table with sorting, filtering, pagination, row selection, dropdown actions, and status/priority badges with dark mode styles |
+
+### Theme Infrastructure
+
+| File | Responsibility |
+|------|---------------|
+| `webview/src/index.css` | VS Code theme bridge: maps `--vscode-*` CSS variables to ShadCN design tokens; sets `color-scheme: dark` on `.vscode-dark` and `.vscode-high-contrast` |
 
 ## Implementation Details
 
-### Index Page Rendering
+### SinkPage Rendering
 
-The index page filters the registry for `registry:ui` entries and renders each inside a card wrapper. The layout uses a `@container` grid for container-query-based responsive behavior:
-
-```tsx
-<div className="@container grid flex-1 gap-4 p-4">
-  {Object.entries(componentRegistry)
-    .filter(([, component]) => component.type === 'registry:ui')
-    .map(([key, component]) => (
-      <ComponentWrapper key={key} name={key}>
-        <Demo />
-      </ComponentWrapper>
-    ))}
-</div>
-```
-
-### Detail Page Rendering
-
-The detail page looks up the component by URL param. Pages (`registry:page`) render full-bleed with no padding; components (`registry:ui`) get `p-6` padding:
+`SinkPage` maintains a single `searchFilter` state. It filters the registry by display name (case-insensitive) and renders each matching entry inside a `ComponentWrapper`:
 
 ```tsx
-const isPage = component.type === 'registry:page'
+// webview/src/pages/sink/SinkPage.tsx
+const filtered = Object.entries(sinkRegistry).filter(
+  ([, config]) => config.name.toLowerCase().includes(searchFilter.toLowerCase())
+);
+
 return (
-  <div className={isPage ? undefined : 'p-6'}>
-    <Demo />
+  <div className="flex flex-col min-h-screen">
+    <SinkHeader searchFilter={searchFilter} onSearchChange={setSearchFilter} />
+    <div className="grid flex-1 gap-4 p-4">
+      {filtered.map(([key, config]) => (
+        <ComponentWrapper key={key} name={key} className={config.className}>
+          <Demo />
+        </ComponentWrapper>
+      ))}
+    </div>
   </div>
-)
+);
 ```
 
-If the `:name` param doesn't match any registry key, the page redirects to `/sink`.
+The layout is a single scrollable column — no sidebar, no detail pages, no multi-panel navigation.
 
-### Error Boundary Isolation
+### SinkHeader
 
-The card wrapper includes a class-based error boundary that catches render errors per-demo. This prevents a broken demo from taking down the entire index page. The error boundary logs to console and renders a red error message with the component name.
+A sticky header (`top-0 z-10`) with:
+- "Kitchen Sink" title
+- Vertical separator
+- Plain `<input>` (not the ShadCN `Input` component) for filtering
+- Conditional "Clear" button when filter is active
 
-### Theme System
+The header uses `bg-[var(--background)]` directly to ensure it matches the VS Code editor background when sticky.
 
-The theme selector provides four independent theme axes:
+### ComponentWrapper and Error Boundary
 
-| Axis | Options |
-|------|---------|
-| **Sizes** | Default, Scaled, Mono |
-| **Colors** | Blue, Green, Amber, Rose, Purple, Orange, Teal |
-| **Fonts** | Inter, Noto Sans, Nunito Sans, Figtree |
-| **Radius** | None, Small, Medium, Large, Full |
+Each demo is wrapped in a `ComponentWrapper` that provides:
+1. A bordered card container with rounded corners
+2. A header bar showing the component name (auto-generated from the kebab-case registry key via `getComponentName()`)
+3. A content area with padding and flex centering
+4. A class-based `ComponentErrorBoundary` that catches render errors per-demo
 
-When a theme value is selected, `useActiveTheme()` calls `setActiveTheme()` which:
+The error boundary logs to console and renders a red error message. This prevents a broken demo from taking down the entire page.
 
-1. Strips all `theme-*` classes from `document.body`
-2. Adds `theme-{value}` class
-3. Adds `theme-scaled` if the value ends with `-scaled`
-4. Persists to localStorage under key `active-theme`
+### SinkPanelManager (Extension Host)
 
-Default theme on fresh load: `blue-scaled`.
+`SinkPanelManager` manages a singleton `WebviewPanel`:
+- **First call to `show()`:** Creates a new panel (`ashWorkbench.kitchenSink`, title "ASH Kitchen Sink"), sets HTML via shared `getWebviewHtml()`, sends `init` message, and listens for `onDidReceiveMessage` to re-send init on webview ready
+- **Subsequent calls:** Reveals the existing panel and re-sends the `init` message
+- **Panel disposal:** Clears the reference so the next `show()` creates a fresh panel
 
-### Sidebar Navigation
+Panel options: `enableScripts: true`, `localResourceRoots: [extensionUri/webview-dist]`, `retainContextWhenHidden: true`.
 
-The sidebar groups components into two collapsible sections ("Components" for `registry:ui`, "Pages" for `registry:page`). Both sections default to open when the path includes `/sink`. Active state is tracked by comparing `pathname === item.href`.
+### Dark Mode / Theme Integration
 
-Components with a `label` property (e.g., "New") render a small blue dot indicator next to the name in the sidebar nav.
+The webview inherits VS Code's theme via CSS custom properties. Key mechanism:
 
-### Form Demo Patterns
+1. VS Code injects `--vscode-*` CSS variables and a class on `<body>` (`.vscode-dark`, `.vscode-light`, or `.vscode-high-contrast`)
+2. `index.css` maps these to ShadCN design tokens (e.g., `--background: var(--vscode-editor-background, ...)`)
+3. Tailwind's dark variant is remapped via `@custom-variant dark (&:is(.vscode-dark *))` so `dark:` utilities work
+4. `color-scheme: dark` is set on `.vscode-dark` and `.vscode-high-contrast` so native browser controls (date picker icons, scrollbars, etc.) render with light-colored icons against dark backgrounds
 
-The sink showcases two distinct form patterns:
+### Tasks Demo (Data Table)
 
-1. **Legacy Form wrapper** (form-demo): Uses `Form` / `FormField` / `FormItem` / `FormLabel` / `FormControl` wrappers from the UI library. Demonstrates React Hook Form + Zod validation with many field types (text input, select, textarea, radio group, checkbox, date picker, switch).
+The most complex demo — `tasks-demo.tsx` — demonstrates TanStack React Table with:
+- Checkbox row selection (header "select all" + per-row)
+- Sortable/filterable columns
+- Paginated display with Previous/Next controls
+- Dropdown row actions (copy ID, view details, edit)
+- Status badges with dark-mode-aware color mappings (e.g., `dark:bg-blue-900 dark:text-blue-200`)
+- Inline filter input
 
-2. **Field-based forms** (shipping-form and other forms page demos): Uses the newer `Field` / `FieldSet` / `FieldGroup` / `FieldLabel` / `FieldDescription` components. This is the recommended pattern per project conventions.
-
-Both patterns are preserved in the sink to show the evolution and to document what each approach looks like.
-
-### Tasks Page (Data Table Demo)
-
-The Tasks page demonstrates TanStack React Table integration with:
-
-- Zod schema validation of JSON task data (`z.array(taskSchema).parse(tasksData)`)
-- Column definitions with sorting and filtering
-- Toolbar with faceted filters
-- Pagination controls
-- Row actions
-- View options (column visibility)
-
-This serves as the reference implementation for data table patterns used elsewhere in the application.
-
-### Playground Page
-
-A complex multi-panel layout simulating an AI model interaction interface:
-
-- **Mobile-responsive**: Shows a fallback message on small screens, full UI on `md+`
-- **Three tabs**: Complete, Insert, Edit — each with different textarea layouts
-- **Parameter sidebar**: Model selector, temperature/max-length/top-p sliders
-- **Preset management**: Save, share, load presets via dialogs
-- **Code viewer**: Shows configuration as code
-
-### Chat Page
-
-Integrates the assistant-ui library with a local runtime adapter:
-
-- Demo model adapter echoes back user input after an 800ms simulated delay
-- Supports abort signals for cancellation
-- Renders in a full-height container (100vh minus 3.5rem to account for the header)
+Data is hardcoded (12 tasks). No external data source.
 
 ## Patterns and Conventions
 
 ### File Organization
 
-- One demo per file in `components/` directory
+- One demo per file in `demos/` directory
 - Named exports only (e.g., `export function ButtonDemo()`)
-- Page demos get their own subdirectory under `pages/` with co-located sub-components and data files
-- No default exports on demo components; pages that need lazy loading export `Component` with `displayName`
+- No default exports on demo components
+- Registry key matches filename without `-demo` suffix (e.g., `button` -> `button-demo.tsx`)
 
 ### Naming Convention
 
 - Demo files: `{component-name}-demo.tsx` (kebab-case)
-- Registry keys: `{component-name}` (kebab-case, matching the file without `-demo`)
-- Display names: Title Case conversion via `getComponentName()` (replaces hyphens with spaces, capitalizes words)
+- Registry keys: `{component-name}` (kebab-case)
+- Display names: Auto-generated via `getComponentName()` in `component-wrapper.tsx:44` — replaces hyphens with spaces, capitalizes each word
 
 ### Component Registration
 
-Every new component added to the design system should have a corresponding demo registered in `component-registry.ts`. The registration process:
+Every new UI component should have a corresponding demo registered in `sink-registry.ts`:
 
-1. Create `components/{name}-demo.tsx` with a named export
-2. Import and add to the `componentRegistry` object
-3. Set `type: 'registry:ui'` for primitives, `'registry:page'` for full-page demos
-4. Optionally add `label: 'New'` for recently added components
-5. Optionally add `className` for layout overrides (e.g., `'w-full'` for charts)
+1. Create `demos/{name}-demo.tsx` with a named export
+2. Import and add to the `sinkRegistry` object in `sink-registry.ts`
+3. Set `type: 'ui'` for ShadCN primitives, `'app'` for ASH-specific components
+4. Optionally add `className` for layout overrides (e.g., `'w-full'` for the tasks table)
+5. Optionally add `label` for recently added components
 
 ### Demo Data
 
-All demo data is hardcoded within the sink files. No external API calls, no auth dependencies, no shared application state. The sidebar uses mock user/team data. The Tasks page loads from a local JSON file.
+All demo data is hardcoded within demo files. No external API calls, no auth dependencies, no shared application state. The tasks demo uses inline data arrays. No JSON file imports.
 
 ## Configuration and Environment
 
 | Setting | Value | Source |
 |---------|-------|--------|
-| Dev-only inclusion | `import.meta.env.DEV` | Vite environment variable |
-| Default theme | `blue-scaled` | Hardcoded in active theme provider |
-| Theme persistence | localStorage key `active-theme` | Browser storage |
-| Sidebar default state | Open | Hardcoded in layout |
-| Sidebar collapsible mode | `icon` (collapses to icon bar) | Hardcoded in sidebar |
+| Dev-only command registration | `context.extensionMode === ExtensionMode.Development` | `vsix/src/extension.ts:25` |
+| Dev-only rendering | Context message `{ context: 'sink' }` sent only by `SinkPanelManager` | `vsix/src/providers/sinkPanelManager.ts:12` |
+| Panel ID | `ashWorkbench.kitchenSink` | `sinkPanelManager.ts:17` |
+| Command ID | `ashWorkbench.openKitchenSink` | `extension.ts:27`, `package.json:53` |
+| Panel retention | `retainContextWhenHidden: true` | `sinkPanelManager.ts:24` |
 
-No environment variables, feature flags, or runtime configuration affect the Kitchen Sink. It is entirely self-contained.
+No environment variables, feature flags, or runtime configuration affect the Kitchen Sink beyond the extension mode check.
 
 ## Integration Points
 
 ### Consumes From Main App
 
-- **UI primitives**: All shared UI components (Button, Card, Dialog, etc.)
-- **Theme provider**: The active theme provider wraps the entire app; the sink's theme selector interacts with it
-- **Dark mode toggle**: Shared mode toggle component
-- **Chat thread**: Shared assistant-ui thread component
-- **Utility functions**: `cn()` for class merging
+- **Shared webview HTML shell:** `getWebviewHtml()` generates the same HTML for sink, sidebar, and editor panels
+- **Shared `App.tsx` reducer:** The sink context is one branch of the same `useReducer` that handles sidebar and editor panel contexts
+- **Message protocol:** Uses the same `ExtToWebviewMessage` / `WebviewToExtMessage` types as the production webview
+- **ShadCN UI primitives:** All shared UI components (`Button`, `Card`, `Dialog`, `Input`, etc.)
+- **App components:** `SeverityBadge`, `DispositionBadge` — these are production components being exercised
+- **Types:** `Severity`, `Disposition` from `types/types.ts`
+- **Theme CSS:** `index.css` with VS Code variable bridge and `color-scheme` support
+- **Utility functions:** `cn()` for class merging
 
 ### Does Not Consume
 
-- Authentication (no auth required for `/sink`)
-- API services (no data-fetching hooks, no backend calls)
-- Application state (no store interaction)
-- Routing guards (no protected route wrappers)
+- Database or any persistence layer
+- ASH CLI or scanner services
+- Authentication or workspace state
+- React Router (there is none in the app)
 
 ### Consumed By
 
-Nothing depends on the Kitchen Sink. It is a leaf node in the dependency graph. It exists purely for developer reference.
+Nothing depends on the Kitchen Sink. It is a leaf node in the dependency graph.
 
 ## Maintenance and Gotchas
 
-### Production Build Safety
+### Dev-Only Gate Is on the Command, Not the Code
 
-The `import.meta.env.DEV` guard at the route definition level ensures the entire sink module tree is eliminated during production builds. **Do not move the conditional check inside the component** — it must remain at the route array level for proper tree-shaking. If the guard is accidentally removed or refactored into a runtime check, the entire sink (including all 55+ demo files and their dependencies like the assistant-ui local adapter) will ship to production.
+The `SinkPanelManager` class is always instantiated in `extension.ts:24`. Only the **command registration** is gated behind `ExtensionMode.Development` at `extension.ts:25`. The `SinkPage` component and all 22 demo files are always included in the webview bundle. This is acceptable because the webview is not published independently (it's embedded in the `.vsix`), but be aware that the sink code **does** ship in the packaged extension — it just can't be triggered.
 
-### Error Boundary Scope
+### Webview Build Must Be Copied to vsix/
 
-Each card wrapper has its own error boundary. If you render a demo outside of the wrapper (e.g., directly in the detail page for `registry:page` items), there is **no error boundary**. A crash in a page demo will crash the detail view. Consider wrapping page demos if stability becomes an issue.
+The webview builds to `webview/dist/` but the extension loads from `vsix/webview-dist/`. After any webview change (including sink changes), run `cd vsix && npm run build:webview` or `npm run copy:webview`. Forgetting this step is the most common reason changes don't appear after F5. See the [Build Pipeline](../../../developer-docs/architecture/build-pipeline.md) docs.
 
-### Theme Class Side Effects
+### `color-scheme: dark` Is Required for Native Input Icons
 
-The theme system manipulates `document.body.classList` directly. Theme classes set while viewing the sink **persist** after navigating back to the main application because they're stored in localStorage and reapplied by the theme provider on mount. This is by design (the theme applies globally), but can be surprising if a developer switches to an unusual theme in the sink and then wonders why the main app looks different.
+Native browser controls (date picker calendar icon, time picker icon, search clear button, file input button, scrollbars) use the CSS `color-scheme` property to determine icon color. Without `color-scheme: dark`, these render with dark icons that are invisible against VS Code's dark background. The fix is in `index.css:97-103` — `.vscode-dark` and `.vscode-high-contrast` both set `color-scheme: dark`. If this is accidentally removed, the Input demo's date/time/search/file inputs will appear broken in dark themes.
 
-### Sidebar Search Is Non-Functional
+### No Detail View — All Demos Render on One Page
 
-The search input in the sidebar header (placeholder: "Search the docs...") is a **UI placeholder only**. It has no filtering logic attached. If you need searchable component navigation, the search must be implemented.
+Unlike the previous architecture (which had index/detail routing), the current sink renders all 22 demos in a single scrolling grid. As the demo count grows, page load and scroll performance may degrade. The search filter mitigates this somewhat, but does not prevent rendering — all demos mount, they're just hidden via the filter.
 
-### Form Demo Uses Legacy Pattern
+### Error Boundary Does Not Catch Module-Level Errors
 
-The form-demo component uses the older Form / FormField / FormItem pattern which is **deprecated** in project conventions. The recommended pattern uses Controller + Field directly. The demo is retained to show what the legacy pattern looks like, but new form work should follow the Field-based approach demonstrated in the shipping form demo.
+The `ComponentErrorBoundary` catches errors during React rendering. If a demo throws at **import time** (e.g., a broken module-level constant or missing dependency), the error will crash `SinkPage` entirely because it occurs before the error boundary renders. The tasks demo's inline data is safe, but be cautious with demos that import from external data files.
 
-### New Component Label Hygiene
+### SinkHeader Uses a Plain HTML Input
 
-Components marked with `label: 'New'` in the registry display a blue dot in the sidebar. There is no automated mechanism to remove these labels. Over time, "new" components become established and the labels become misleading. Periodically audit the registry and remove label entries for components that are no longer new.
+The search input in `sink-header.tsx:13` is a plain `<input>` element, not the ShadCN `Input` component. This is intentional — using a ShadCN component inside the sink's own chrome would create a circular dependency if the Input demo itself had a rendering bug. The styling uses inline Tailwind classes with `bg-transparent`.
 
-### Chat Demo Runtime Dependency
+### Tasks Demo Has Hardcoded Dark Mode Classes
 
-The Chat page imports assistant-ui/react which is a relatively heavy dependency. Because the entire sink is tree-shaken from production, this has no bundle impact. However, it **does** affect dev server cold-start time and HMR performance. If the chat demo is not actively needed, its lazy import helps mitigate this.
+The tasks demo at `tasks-demo.tsx:43-54` uses explicit `dark:bg-*` and `dark:text-*` Tailwind classes for status and priority badge colors. These rely on the custom variant `@custom-variant dark (&:is(.vscode-dark *))` in `index.css:4`. If the dark variant mapping changes, these badge colors will stop adapting.
 
-### Tasks Demo Data File
+### Panel Reuse via `retainContextWhenHidden`
 
-The Tasks page loads data from a static JSON file and validates it with Zod at import time. If the JSON file is modified to not match the schema, the Tasks page will throw on load. The error boundary on the detail page does **not** catch this because the error occurs during module initialization, not during render.
+The sink panel uses `retainContextWhenHidden: true`, which keeps the webview alive when the tab is not visible. This preserves search filter state and scroll position but uses more memory. If the panel is disposed (closed), the next `show()` creates a fresh panel and the init message is re-sent.
 
-### Container Query Grid
+### Two Message Paths for Init
 
-The index page uses `@container` for its grid layout. This is a CSS container query, not a media query. Components respond to the **container width**, not the viewport width. This means the grid layout changes when the sidebar is toggled open/closed, which is the desired behavior but can be confusing if you're debugging responsive breakpoints with browser DevTools viewport controls.
+The `SinkPanelManager` sends the `init` message twice: once immediately after setting HTML (`sinkPanelManager.ts:12` for reveal, or after creating the panel), and once in the `onDidReceiveMessage` handler (`sinkPanelManager.ts:29`). The second path handles the case where the webview's JavaScript loads after the first message was sent. The webview triggers this by sending `{ type: 'requestState' }` on mount (`App.tsx:97`), which the panel receives and responds to with the init message.
 
 ## Testing
 
 There are **no dedicated tests** for the Kitchen Sink. The feature is dev-only and entirely visual. Verification is manual:
 
-1. Navigate to the `/sink` route during development
-2. Scroll through the index page to verify all component demos render
-3. Click individual components to verify detail view rendering
-4. Toggle between themes and dark/light mode to verify visual consistency
-5. Verify the sidebar navigation links work and active states highlight correctly
-6. Verify the production build does **not** include `/sink` routes (check the build output or attempt to navigate to `/sink` in a production build)
+1. Press F5 to launch the Extension Development Host
+2. Open Command Palette and run `ASH: Open Kitchen Sink`
+3. Scroll through the page to verify all 22 component demos render
+4. Use the search filter to verify filtering works
+5. Switch VS Code between dark and light themes to verify visual consistency — pay special attention to native input icons (calendar, clock) in the Input demo
+6. Verify the command does **not** appear in the Command Palette when running the extension in production mode
 
 ## Key Takeaways
 
-- **Dev-only**: The entire sink is tree-shaken from production via `import.meta.env.DEV` at the route level — do not move this guard
-- **Self-contained**: No auth, no API calls, no shared state — all data is hardcoded demo data
-- **Central registry**: The component registry file is the single source of truth for all showcased components; new components must be registered here
-- **Two types**: `registry:ui` renders in card grid on index; `registry:page` renders full-viewport on detail page
-- **Error isolation**: Each component demo is wrapped in its own error boundary via the card wrapper
-- **Theme persistence**: Theme changes in the sink persist globally via localStorage and affect the main app
-- **Two form patterns**: Legacy Form/FormField (deprecated) and modern Field/FieldSet (recommended) are both demonstrated
-- **Search is a placeholder**: The sidebar search input has no filtering implementation
-- **No tests**: Verification is entirely manual and visual
-- **Clean up "New" labels**: There is no auto-expiry on `label: 'New'` badges; audit periodically
+- **Message-driven, not routed:** The sink renders via `postMessage` context switching (`context: 'sink'`), not React Router
+- **Dev-only command:** `ashWorkbench.openKitchenSink` is registered only when `extensionMode === Development`
+- **22 demos in a flat grid:** 19 ShadCN primitives + 3 app-specific (SeverityBadge, DispositionBadge, Tasks table)
+- **Central registry:** `sink-registry.ts` is the single source of truth — add demos here
+- **Two component types:** `ui` for ShadCN primitives, `app` for ASH-specific components
+- **Error isolation:** Each demo gets its own error boundary via `ComponentWrapper`
+- **`color-scheme: dark` is critical:** Without it, native input icons (calendar, etc.) are invisible in dark themes — see `index.css:97-103`
+- **Copy step required:** After webview changes, run `cd vsix && npm run build:webview` before F5
+- **Code ships but can't trigger:** Sink code is in the production bundle but the command is not registered outside dev mode
+- **Search filter is the only navigation:** No sidebar, no detail pages, no breadcrumbs — just a text filter in the sticky header

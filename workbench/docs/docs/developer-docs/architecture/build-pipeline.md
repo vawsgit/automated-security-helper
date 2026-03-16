@@ -61,20 +61,65 @@ build: {
 
 The extension host HTML generator (`vsix/src/providers/webviewHtml.ts`) relies on these exact paths: `webview-dist/assets/index.js` and `webview-dist/assets/index.css`.
 
-### Key npm scripts in vsix/package.json
+### npm scripts reference
 
-| Script | Purpose |
-|---|---|
-| `build` | Full build: webview + copy + tsc |
-| `build:webview` | Build webview and copy to `webview-dist/` |
-| `copy:webview` | Copy `../webview/dist` to `./webview-dist` |
-| `compile` | TypeScript compile only (`tsc -p ./`) |
-| `watch` | TypeScript watch mode (extension host only) |
-| `vscode:prepublish` | Runs `build` before `vsce package` |
+#### `vsix/` — VS Code extension
+
+| Script | Command | Purpose |
+|---|---|---|
+| `build` | `build:webview && compile` | Full build: webview + copy + extension tsc |
+| `build:webview` | `cd ../webview && npm run build && npm run copy:webview` | Build webview and copy output to `webview-dist/` |
+| `copy:webview` | `rm -rf ./webview-dist && cp -r ../webview/dist ./webview-dist` | Copy webview build artifacts into extension |
+| `compile` | `tsc -p ./` | TypeScript compile (extension host only) |
+| `watch` | `tsc -watch -p ./` | TypeScript watch mode (extension host only) |
+| `lint` | `eslint src` | Run ESLint on extension source |
+| `format` | `prettier --write "src/**/*.ts"` | Auto-format extension source |
+| `format:check` | `prettier --check "src/**/*.ts"` | Check formatting without writing |
+| `test` | `test:unit && test:integration` | Run all tests |
+| `test:unit` | `mocha` | Run unit tests |
+| `test:integration` | `vscode-test` | Run VS Code integration tests |
+| `pretest` | `compile && lint` | Compile and lint before tests |
+| `vscode:prepublish` | `build` | Runs full build before `vsce package` |
+
+#### `webview/` — React WebView app
+
+| Script | Command | Purpose |
+|---|---|---|
+| `dev` | `vite` | Start Vite dev server with hot reload |
+| `build` | `tsc -b && vite build` | Type-check and produce production build in `dist/` |
+| `lint` | `eslint .` | Run ESLint on webview source |
+| `preview` | `vite preview` | Serve production build locally for inspection |
+
+:::warning
+`npm run dev` in `webview/` starts a standalone Vite server, but the app requires `acquireVsCodeApi()` which only exists inside a VS Code webview. Use the dev server for build-error feedback only — visual testing must happen inside the Extension Development Host.
+:::
+
+#### `docs/` — Docusaurus site
+
+| Script | Command | Purpose |
+|---|---|---|
+| `start` | `docusaurus start` | Dev server with hot reload (localhost:3000) |
+| `build` | `docusaurus build` | Production build |
+| `serve` | `docusaurus serve` | Serve production build locally |
+| `clear` | `docusaurus clear` | Clear `.docusaurus` cache (run after config changes) |
+| `typecheck` | `tsc` | Type-check config and custom components |
 
 ## Development Workflow
 
-Development requires watching both packages. Use three terminals:
+### Common tasks
+
+| I want to... | Command | Where |
+|---|---|---|
+| Launch the extension for testing | Press **F5** (from the `vsix/` workspace) | VS Code |
+| Full rebuild everything | `npm run build` | `vsix/` |
+| Rebuild only the webview | `npm run build:webview` | `vsix/` |
+| Compile only the extension host | `npm run compile` | `vsix/` |
+| Run all tests | `npm run test` | `vsix/` |
+| Start the docs dev server | `npm run start` | `docs/` |
+
+### Watch mode (active development)
+
+Development requires watching both packages. Use two terminals:
 
 ```bash
 # Terminal 1: Watch extension host TypeScript
@@ -82,15 +127,24 @@ cd vsix && npm run watch
 
 # Terminal 2: Watch webview (Vite dev build + rebuild on change)
 cd webview && npm run build -- --watch
-
-# Terminal 3: Copy webview on change (re-run after webview rebuilds)
-cd vsix && npm run copy:webview
 ```
 
 Then press F5 in VS Code (from the `vsix/` workspace) to launch the Extension Development Host.
 
-:::tip
-After changing webview code, re-run `npm run copy:webview` in `vsix/` and reload the Extension Development Host window (`Ctrl+R` / `Cmd+R`).
+:::warning[Webview changes not showing up?]
+The webview builds to `webview/dist/`, but the extension loads from `vsix/webview-dist/`. After changing webview code, you must copy the build output:
+
+```bash
+cd vsix && npm run copy:webview
+```
+
+Or use the one-step command that rebuilds and copies:
+
+```bash
+cd vsix && npm run build:webview
+```
+
+Then reload the Extension Development Host window (`Ctrl+R` / `Cmd+R`).
 :::
 
 ## Extending / Maintaining

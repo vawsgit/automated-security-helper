@@ -1,11 +1,12 @@
 ---
-title: WebView Application
-sidebar_position: 4
+title: Overview
 ---
 
 # WebView Application
 
-The WebView app is a single React application in `webview/` that renders in two VS Code contexts: the sidebar panel and the editor area. One Vite build, one bundle, loaded in both places. An `init` message from the extension host tells the app which context it's running in.
+The WebView app is a single React application in `webview/` that renders in multiple VS Code contexts: the sidebar panel, the editor area, and the dev-only Kitchen Sink. One Vite build, one bundle, loaded in all places. An `init` message from the extension host tells the app which context it's running in.
+
+For the message protocol connecting extension host and WebView, see [Message Protocol](../architecture/message-protocol.md). For build scripts and the copy bridge, see [Build Pipeline](../architecture/build-pipeline.md).
 
 ## Tech Stack
 
@@ -36,6 +37,12 @@ webview/src/
     SeverityBadge.tsx       # Color-coded severity badge
     DispositionBadge.tsx    # Styled disposition badge
     ui/                     # ShadCN auto-generated components
+  pages/
+    sink/                   # Kitchen Sink component showcase (dev-only)
+      SinkPage.tsx          # Main page with search filter and demo grid
+      sink-registry.ts      # Central registry of all demo components
+      components/           # Sink-specific layout components
+      demos/                # One demo file per component (22 files)
   lib/
     utils.ts                # cn() utility (clsx + tailwind-merge)
 ```
@@ -48,18 +55,21 @@ The same React app renders different UIs based on which VS Code context it's loa
 graph TD
     EXT[Extension Host] -->|"init: sidebar"| SIDEBAR[SidebarWebviewProvider]
     EXT -->|"init: editorPanel"| PANEL[FindingsPanelManager]
+    EXT -->|"init: sink"| SINK[SinkPanelManager]
     SIDEBAR --> REACT_S[React App]
     PANEL --> REACT_P[React App]
+    SINK --> REACT_K[React App]
     REACT_S --> DASH[SidebarDashboard]
     REACT_P --> LIST[FindingList]
     REACT_P --> DETAIL[FindingDetail]
+    REACT_K --> SINKPAGE[SinkPage]
 ```
 
 ### App.tsx state machine
 
 `App.tsx` uses `useReducer` with an `AppState` that tracks:
 
-- `context`: `'unknown'` | `'sidebar'` | `'editorPanel'` -- set by the `init` message
+- `context`: `'unknown'` | `'sidebar'` | `'editorPanel'` | `'sink'` -- set by the `init` message
 - `view`: `'loading'` | `'findingList'` | `'findingDetail'` -- controls editor panel navigation
 - Data: `scans`, `summary`, `findings`, `selectedFinding`
 
@@ -73,6 +83,7 @@ On mount, the app sends `requestState` to the extension host. The host responds 
 | `sidebar` | `SidebarDashboard` |
 | `editorPanel` + `findingList` | `FindingList` |
 | `editorPanel` + `findingDetail` | `FindingDetail` |
+| `sink` | `SinkPage` (dev-only [Kitchen Sink](./kitchen-sink.md) component showcase) |
 
 ## VS Code Theme Integration
 
@@ -91,6 +102,8 @@ On mount, the app sends `requestState` to the extension host. The host responds 
 ```
 
 This makes ShadCN components inherit the active VS Code theme automatically. When the user switches between light and dark themes, CSS variables update and the WebView re-renders with matching colors.
+
+Native browser controls (date pickers, scrollbars, search clear buttons) require `color-scheme: dark` to render correctly in dark themes. This is set on `.vscode-dark` and `.vscode-high-contrast` in `index.css`.
 
 ## Key Components
 
@@ -152,3 +165,7 @@ Components are generated in `webview/src/components/ui/`. They use the `@/lib/ut
 ### Shared type changes
 
 Types are manually copied between `vsix/src/models/` and `webview/src/types/`. When modifying `types.ts` or `messages.ts`, update both locations. A future improvement would be a shared package, but the copy approach is intentional for the prototype to avoid monorepo tooling.
+
+## Guides
+
+- **[Kitchen Sink](./kitchen-sink.md)** -- Dev-only component showcase for visual testing

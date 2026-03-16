@@ -47,6 +47,7 @@
  * (e.g. Vite dev server, Storybook, or if a VS Code variable is undefined).
  */
 :root {
+  color-scheme: light;
   --radius: 0.625rem;
 
   /* Core surfaces */
@@ -91,6 +92,14 @@
   --sidebar-accent-foreground: var(--accent-foreground);
   --sidebar-border: var(--vscode-sideBar-border, var(--border));
   --sidebar-ring: var(--ring);
+}
+
+.vscode-dark {
+  color-scheme: dark;
+}
+
+.vscode-high-contrast {
+  color-scheme: dark;
 }
 
 @layer base {
