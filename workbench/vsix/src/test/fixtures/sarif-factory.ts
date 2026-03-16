@@ -4,38 +4,8 @@
  * without depending on real ASH CLI output.
  */
 
-export interface SarifResult {
-  ruleId: string;
-  level: 'error' | 'warning' | 'note' | 'none';
-  message: { text: string };
-  locations: Array<{
-    physicalLocation: {
-      artifactLocation: { uri: string };
-      region?: {
-        startLine: number;
-        endLine?: number;
-        snippet?: { text: string };
-      };
-    };
-  }>;
-  properties?: Record<string, unknown>;
-}
-
-export interface SarifRun {
-  tool: {
-    driver: {
-      name: string;
-      rules: Array<{ id: string; shortDescription?: { text: string } }>;
-    };
-  };
-  results: SarifResult[];
-}
-
-export interface SarifLog {
-  version: '2.1.0';
-  $schema?: string;
-  runs: SarifRun[];
-}
+export type { SarifResult, SarifRun, SarifLog } from '../../types/sarif';
+import type { SarifResult, SarifRun, SarifLog } from '../../types/sarif';
 
 export function createSarifResult(overrides?: Partial<SarifResult>): SarifResult {
   return {
@@ -81,4 +51,34 @@ export function createSarifLog(runs: SarifRun[]): SarifLog {
 /** Create a complete SARIF log with one run containing the given results. */
 export function createSingleRunSarif(results: SarifResult[], toolName = 'test-scanner'): SarifLog {
   return createSarifLog([createSarifRun(results, toolName)]);
+}
+
+/** Create a SarifResult with ASH-specific severity in properties. */
+export function createAshSeverityResult(
+  severity: string,
+  level: SarifResult['level'] = 'warning',
+  propertyKey: 'severity' | 'ash/severity' = 'severity',
+): SarifResult {
+  return createSarifResult({
+    level,
+    properties: { [propertyKey]: severity },
+  });
+}
+
+/** Create a multi-run SARIF log from scanner configurations. */
+export function createMultiRunSarif(
+  configs: Array<{ toolName: string; results: SarifResult[] }>,
+): SarifLog {
+  return createSarifLog(configs.map((c) => createSarifRun(c.results, c.toolName)));
+}
+
+/** Create a SarifResult with only required fields (no locations, no properties). */
+export function createMinimalResult(overrides?: Partial<SarifResult>): SarifResult {
+  return {
+    ruleId: 'minimal-rule',
+    level: 'warning',
+    message: { text: 'Minimal finding' },
+    locations: [],
+    ...overrides,
+  };
 }
