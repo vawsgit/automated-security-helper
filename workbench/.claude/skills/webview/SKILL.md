@@ -308,6 +308,7 @@ export function MyComponentDemo() {
 - All demo data hardcoded inline -- no external data dependencies
 - Exercise all variants and states of the component
 - Import UI components from `@/components/ui/*`, app components from `@/components/*`
+- Use `mcp__shadcn__get_item_examples_from_registries` to pull official ShadCN examples as the starting point for demos -- adapt import paths from `@/registry/new-york-v4/ui/*` to `@/components/ui/*` and strip any `"use client"` directives
 
 **2. Register in sink-registry.ts:**
 
@@ -354,6 +355,18 @@ Then F5, open the Kitchen Sink, confirm the demo renders in both dark and light 
 ### Shared Type Changes
 
 Types in `webview/src/types/` are manually copied from `vsix/src/models/`. When modifying `types.ts` or `messages.ts`, **update both locations**. The copy approach is intentional for the prototype.
+
+## Relationship to /frontend-design Skill
+
+The `/frontend-design` skill provides general guidance for creating visually distinctive web interfaces. **When working in this webview, the constraints below override `/frontend-design` guidance wherever they conflict:**
+
+- **Fonts:** Do not use custom or external fonts. The webview inherits the user's VS Code font via `--vscode-font-family`. CSP blocks all external font loading. This is correct behavior -- the webview should feel native to VS Code, not like a standalone web app.
+- **Colors:** Do not create custom color palettes. Use the VS Code theme variable mappings in `index.css` (`--vscode-*` -> ShadCN tokens). The user's chosen VS Code theme is the design system. Domain colors (severity/disposition) are the only exception -- these use hardcoded Tailwind classes for semantic meaning.
+- **External resources:** CSP blocks all external images, fonts, scripts, and stylesheets. Only locally bundled resources are permitted.
+- **Aesthetic direction:** The webview's aesthetic is "native VS Code extension" -- clean, utilitarian, consistent with the editor's look and feel. ShadCN components styled through VS Code theme variables achieve this automatically. Do not add gradient meshes, noise textures, custom cursors, decorative overlays, or other effects that would clash with the VS Code environment.
+- **Animations:** Keep animations minimal and functional (e.g., loading spinners, transition states). VS Code extensions are productivity tools -- elaborate entrance animations and scroll effects would feel out of place.
+
+The `/frontend-design` skill's emphasis on production-grade code quality, accessibility, and attention to detail remains valuable. Apply those principles within the VS Code design constraints.
 
 ## Critical Constraints
 

@@ -28,7 +28,7 @@ The core loop: **scan code, view findings, decide what to do about each one.**
 | **Finding list** | View deduplicated findings from a scan, filterable by severity, file, scanner, and status. |
 | **Finding detail** | View a finding's affected code locations, description, and rule information. Navigate to the affected file/line in the editor. |
 | **Finding triage** | Set a disposition on each finding: Pending, Fix, Suppress, Defer. View cumulative finding status across scans. |
-| **Settings** | Configure ASH installation path, default scan parameters, and LLM model settings (Anthropic on Bedrock). |
+| **Settings & administration** | Configure ASH installation path, default scan parameters, and LLM model settings (Anthropic on Bedrock). Reset application data to start fresh. Automatic database schema upgrades via migrations on extension update. Version and database info display for troubleshooting. |
 
 ### 1.2 What's Out (Future Versions)
 
@@ -85,6 +85,9 @@ The POC is complete when a user can:
 | US-11 | As a user, I can stop a running scan. | Cancel action stops the ASH process. Partial results are discarded. |
 | US-12 | As a user, I can configure ASH Workbench settings (ASH path, default scan parameters). | Settings persisted in VS Code configuration. Validated on save. |
 | US-13 | As a user, I can configure LLM model settings for future AI features. | Model provider, region, and model ID stored. Connection validated. |
+| US-17 | As a user, I can reset the application to a clean state, so that I can start fresh or recover from a corrupted database. | Confirmation dialog shown. All projects, scans, and findings deleted. Extension behaves as first-run after reset. VS Code settings preserved. |
+| US-18 | As a user, the application automatically upgrades its database when I install a new extension version, so that I don't lose data on updates. | Migrations run on activation. Success notification shown. On failure, error with reset/retry options. Extension does not activate with an incompatible schema. |
+| US-19 | As a user, I can view application version and database information on a settings screen, so that I can troubleshoot issues. | Settings screen shows extension version, schema version, and database statistics (project/scan/finding counts). |
 
 ### P2 -- Nice to Have
 
@@ -313,9 +316,11 @@ Tiers 3b (AI vulnerability explanation), 3c (repair options), and 3d (suppressio
 - No verification via re-scan
 - No research document creation
 
-### 4.7 Settings
+### 4.7 Settings & Administration
 
-**Behavior:**
+The Settings feature covers two areas: **application configuration** (ASH paths, scan defaults, LLM settings) and **application administration** (reset, upgrade).
+
+#### 4.7.1 Application Configuration
 
 Settings are stored in VS Code's configuration system (`vscode.workspace.getConfiguration`).
 
@@ -330,7 +335,63 @@ Settings are stored in VS Code's configuration system (`vscode.workspace.getConf
 
 LLM settings are stored but not actively used in POC. They prepare for AI enrichment features.
 
-**UI surface:** VS Code native settings UI (contributed via `package.json` `contributes.configuration`). No custom settings WebView needed.
+**UI surface:** VS Code native settings UI (contributed via `package.json` `contributes.configuration`). The WebView settings screen links to the native settings UI filtered to `ashWorkbench.*`.
+
+#### 4.7.2 Application Reset
+
+**Behavior:**
+
+- The user can reset the application to a clean state, removing all persisted data (projects, scans, findings).
+- Reset is accessible from the WebView settings/administration screen and via a command palette command (`ASH Workbench: Reset Application`).
+- A confirmation dialog warns the user that all data will be permanently deleted before proceeding.
+- Reset performs the following steps:
+  1. Drop and recreate all database tables (or delete and reinitialize the database file).
+  2. Clear any cached state in the extension host (in-memory project references, active scan state).
+  3. Reload the WebView to reflect the empty state.
+- After reset, the extension behaves as if activated for the first time (prompts for project creation).
+- Reset does **not** modify VS Code configuration settings (ASH path, LLM settings, etc.) -- only application data is cleared.
+
+**When to use:** Reset is intended for situations where:
+- The database becomes corrupted or inconsistent.
+- The user wants to start fresh after experimentation.
+- A migration fails and cannot be retried (reset is offered as a fallback).
+
+**Partial reset (future consideration):** Deleting a single project and its associated scans/findings could be offered as a lighter alternative. For POC, only full reset is supported.
+
+#### 4.7.3 Application Upgrade & Migrations
+
+**Behavior:**
+
+- The extension tracks a schema version in the database to detect when an upgrade is needed.
+- On activation, the extension compares the current database schema version against the version expected by the installed extension.
+- If the schema is behind, migrations run automatically before the extension becomes usable.
+
+**Migration lifecycle:**
+
+1. Extension reads the current schema version from a `_meta` table in the database.
+2. Extension determines which pending migrations need to run (ordered, sequential).
+3. Migrations execute within a transaction -- if any migration fails, the transaction rolls back and the database remains at its previous version.
+4. On successful migration, the schema version is updated in `_meta`.
+5. The user is notified of a successful upgrade via an information message.
+
+**Migration failure handling:**
+
+- The extension displays an error message with the failure details.
+- The user is offered the option to **reset the application** (reinitialize from scratch) or **retry** the migration.
+- The extension does not activate normally until the database is in a valid state.
+- Migrations are forward-only. Downgrading the extension to a prior version with a newer database schema is not supported -- the user would need to reset.
+
+**Migration strategy:**
+
+- Prisma Migrate generates SQL migration files checked into the repository.
+- Each migration is idempotent where possible (use `IF NOT EXISTS`, `IF EXISTS` guards).
+- Migrations that alter existing data (column renames, type changes, data transforms) include both the schema change and any necessary data migration logic.
+- The migration history is stored in the database alongside Prisma's migration tracking.
+
+**Version display:**
+
+- The current extension version and database schema version are displayed on the WebView settings/administration screen.
+- This aids debugging when users report issues.
 
 ---
 
@@ -391,6 +452,8 @@ The WebView and extension host communicate via a message protocol:
 | `findingDetail` | Single finding with full data | On finding selection |
 | `scanProgress` | Status text, percentage (if available) | During active scan |
 | `summary` | Disposition counts | On load, after disposition change |
+| `applicationInfo` | Extension version, schema version, database stats | On settings screen load |
+| `applicationReset` | Empty | After successful reset (triggers WebView reload) |
 
 **WebView -> Extension (user actions):**
 
@@ -404,6 +467,8 @@ The WebView and extension host communicate via a message protocol:
 | `navigateToCode` | `{ file, line }` | Open file in editor |
 | `deleteScan` | `{ scanId }` | Delete scan (with confirmation in extension host) |
 | `applyFilters` | `{ severity?, scanner?, disposition?, filePattern? }` | Filter finding list |
+| `resetApplication` | `{}` | Reset all application data (extension host shows confirmation) |
+| `requestApplicationInfo` | `{}` | Request version and database stats for settings screen |
 
 ### 5.4 WebView Screens
 
@@ -426,6 +491,14 @@ The WebView and extension host communicate via a message protocol:
 - Disposition control: button group (Pending / Fix / Suppress / Defer)
 - Code locations: for each location, show file path (clickable), line range, syntax-highlighted excerpt
 - Scanner details: full description, rule documentation link (if available)
+
+**Screen 4: Settings & Administration**
+- Version info: extension version, database schema version
+- Application data section:
+  - Database statistics: project count, scan count, finding count, database file size
+  - "Reset Application" button (destructive, prominent warning styling)
+- Upgrade status: current schema version, whether migrations are pending
+- Link to VS Code settings for ASH configuration (opens native settings UI filtered to `ashWorkbench.*`)
 
 ---
 
@@ -569,6 +642,62 @@ sequenceDiagram
     WV->>Ext: navigateToCode { file: "infra/s3.yml", line: 42 }
     Ext->>Editor: vscode.open(uri, { selection: line 42 })
     Editor-->>User: File opens, cursor at line 42
+```
+
+### 7.5 Reset Application
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant WV as WebView
+    participant Ext as Extension Host
+    participant DB as PGLite
+
+    User->>WV: Click "Reset Application" on Settings screen
+    WV->>Ext: resetApplication {}
+    Ext->>User: Confirmation dialog: "Delete all projects, scans, and findings?"
+    User->>Ext: Confirm
+
+    Ext->>DB: Drop and recreate all tables
+    Ext->>DB: Reinitialize schema (run all migrations from scratch)
+    Ext->>Ext: Clear in-memory state (active project, scan references)
+    Ext->>WV: applicationReset {}
+    WV->>WV: Reload to empty state
+    WV-->>User: First-run experience (project creation prompt)
+```
+
+### 7.6 Application Upgrade (on activation)
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant Ext as Extension Host
+    participant DB as PGLite
+
+    User->>Ext: Activate extension (VS Code starts)
+    Ext->>DB: Read schema version from _meta table
+
+    alt Schema version matches extension version
+        Ext->>Ext: Proceed with normal activation
+    else Schema version is behind
+        Ext->>DB: Begin transaction
+        Ext->>DB: Run pending migrations (sequential, ordered)
+
+        alt Migrations succeed
+            Ext->>DB: Update schema version in _meta
+            Ext->>DB: Commit transaction
+            Ext->>User: Info notification: "ASH Workbench upgraded successfully"
+            Ext->>Ext: Proceed with normal activation
+        else Migration fails
+            Ext->>DB: Rollback transaction
+            Ext->>User: Error: "Upgrade failed" with details
+            Ext->>User: Offer "Reset Application" or "Retry"
+        end
+    else No _meta table (fresh install)
+        Ext->>DB: Run all migrations from scratch
+        Ext->>DB: Create _meta table with current version
+        Ext->>Ext: Proceed with normal activation
+    end
 ```
 
 ---
