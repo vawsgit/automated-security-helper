@@ -9,7 +9,8 @@ export type ExtToWebviewMessage =
   | { type: 'findingsUpdate'; payload: { scanId: string; findings: FindingRow[] } }
   | { type: 'findingDetail'; payload: FindingRow }
   | { type: 'dispositionUpdated'; payload: { findingId: string; disposition: Disposition } }
-  | { type: 'scanStarted'; payload: { targetPath: string } };
+  | { type: 'scanStarted'; payload: { scanId: string; targetPath: string } }
+  | { type: 'scanProgress'; payload: { scanId: string; elapsed: number; status: string } };
 
 // WebView -> Extension Host
 export type WebviewToExtMessage =
@@ -19,5 +20,6 @@ export type WebviewToExtMessage =
   | { type: 'setDisposition'; payload: { findingId: string; disposition: Disposition } }
   | { type: 'navigateToCode'; payload: { filePath: string; startLine: number } }
   | { type: 'startScan'; payload: { targetPath: string } }
+  | { type: 'cancelScan'; payload: { scanId: string } }
   | { type: 'openFindings'; payload: { scanId: string } }
   | { type: 'openSink' };

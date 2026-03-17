@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import type { PrismaClient, Project } from '@prisma/client';
 import type { ScanSummary } from '../models/types';
-import { getMockScans } from '../mock/data';
+import { mapScanToSummary } from '../models/mappers';
 
 export class ScanTreeProvider implements vscode.TreeDataProvider<ScanTreeItem> {
   private _onDidChangeTreeData = new vscode.EventEmitter<ScanTreeItem | undefined | void>();
@@ -10,17 +10,20 @@ export class ScanTreeProvider implements vscode.TreeDataProvider<ScanTreeItem> {
   private selectedScanId: string | undefined;
 
   constructor(
-    _db: PrismaClient,
-    _project: Project,
+    private readonly db: PrismaClient,
+    private readonly project: Project,
   ) {}
 
   getTreeItem(element: ScanTreeItem): vscode.TreeItem {
     return element;
   }
 
-  getChildren(): ScanTreeItem[] {
-    const scans = getMockScans();
-    return scans.map(scan => new ScanTreeItem(scan));
+  async getChildren(): Promise<ScanTreeItem[]> {
+    const scans = await this.db.scan.findMany({
+      where: { projectId: this.project.id },
+      orderBy: { startedAt: 'desc' },
+    });
+    return scans.map(scan => new ScanTreeItem(mapScanToSummary(scan)));
   }
 
   refresh(): void {
