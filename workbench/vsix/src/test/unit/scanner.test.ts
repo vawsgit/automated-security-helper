@@ -500,4 +500,251 @@ describe('ScannerService', () => {
       clock.restore();
     });
   });
+
+  // ===== Spec 007: ASH Console Output Channel =====
+
+  /** Creates a mock OutputChannel with sinon stubs. */
+  function createMockChannel() {
+    return {
+      name: 'ASH',
+      appendLine: sinon.stub(),
+      append: sinon.stub(),
+      clear: sinon.stub(),
+      show: sinon.stub(),
+      hide: sinon.stub(),
+      dispose: sinon.stub(),
+      replace: sinon.stub(),
+    };
+  }
+
+  describe('Output Channel integration', () => {
+    it('clears and shows channel at scan start', async () => {
+      const mockProc = createMockProcess();
+      spawnStub.returns(mockProc);
+      const channel = createMockChannel();
+
+      const scanner = new ScannerService(db, projectId, spawnStub, channel as any);
+      scanner.setConfigOverride({ ashPath: 'ash', ashMode: 'local', scanTimeout: 600 });
+
+      const resultPromise = scanner.startScan({ targetPath: '/test/channel-clear' });
+      await new Promise((r) => setTimeout(r, 50));
+
+      assert.ok(channel.clear.calledOnce, 'channel.clear() should be called once');
+      assert.ok(channel.show.calledOnce, 'channel.show() should be called once');
+      assert.ok(channel.show.calledWith(true), 'channel.show() should preserve focus');
+
+      mockProc.emit('exit', 0, null);
+      await resultPromise;
+    });
+
+    it('writes header with target path, timestamp, and command', async () => {
+      const mockProc = createMockProcess();
+      spawnStub.returns(mockProc);
+      const channel = createMockChannel();
+
+      const scanner = new ScannerService(db, projectId, spawnStub, channel as any);
+      scanner.setConfigOverride({ ashPath: 'ash', ashMode: 'local', scanTimeout: 600 });
+
+      const resultPromise = scanner.startScan({ targetPath: '/test/channel-header' });
+      await new Promise((r) => setTimeout(r, 50));
+
+      const lines = channel.appendLine.args.map((a: any[]) => a[0] as string);
+      assert.ok(lines.some((l: string) => l.includes('ASH Scan Started')), 'header should contain "ASH Scan Started"');
+      assert.ok(lines.some((l: string) => l.includes('/test/channel-header')), 'header should contain target path');
+      assert.ok(lines.some((l: string) => l.includes('ash --source-dir')), 'header should contain command');
+
+      mockProc.emit('exit', 0, null);
+      await resultPromise;
+    });
+
+    it('pipes stdout to channel line-by-line', async () => {
+      const mockProc = createMockProcess();
+      spawnStub.returns(mockProc);
+      const channel = createMockChannel();
+
+      const scanner = new ScannerService(db, projectId, spawnStub, channel as any);
+      scanner.setConfigOverride({ ashPath: 'ash', ashMode: 'local', scanTimeout: 600 });
+
+      const resultPromise = scanner.startScan({ targetPath: '/test/channel-stdout' });
+      await new Promise((r) => setTimeout(r, 50));
+
+      // Emit stdout data
+      mockProc.stdout!.emit('data', Buffer.from('Running bandit scanner\n'));
+      mockProc.stdout!.emit('data', Buffer.from('Running semgrep scanner\n'));
+
+      const lines = channel.appendLine.args.map((a: any[]) => a[0] as string);
+      assert.ok(lines.some((l: string) => l === 'Running bandit scanner'), 'should pipe stdout line 1');
+      assert.ok(lines.some((l: string) => l === 'Running semgrep scanner'), 'should pipe stdout line 2');
+
+      mockProc.emit('exit', 0, null);
+      await resultPromise;
+    });
+
+    it('pipes stderr with [stderr] prefix', async () => {
+      const mockProc = createMockProcess();
+      spawnStub.returns(mockProc);
+      const channel = createMockChannel();
+
+      const scanner = new ScannerService(db, projectId, spawnStub, channel as any);
+      scanner.setConfigOverride({ ashPath: 'ash', ashMode: 'local', scanTimeout: 600 });
+
+      const resultPromise = scanner.startScan({ targetPath: '/test/channel-stderr' });
+      await new Promise((r) => setTimeout(r, 50));
+
+      // Emit stderr data
+      mockProc.stderr!.emit('data', Buffer.from('WARNING: some warning\n'));
+
+      const lines = channel.appendLine.args.map((a: any[]) => a[0] as string);
+      assert.ok(
+        lines.some((l: string) => l === '[stderr] WARNING: some warning'),
+        'should pipe stderr with [stderr] prefix',
+      );
+
+      mockProc.emit('exit', 1, null);
+      await resultPromise;
+    });
+
+    it('buffers partial lines and flushes on close', async () => {
+      const mockProc = createMockProcess();
+      spawnStub.returns(mockProc);
+      const channel = createMockChannel();
+
+      const scanner = new ScannerService(db, projectId, spawnStub, channel as any);
+      scanner.setConfigOverride({ ashPath: 'ash', ashMode: 'local', scanTimeout: 600 });
+
+      const resultPromise = scanner.startScan({ targetPath: '/test/channel-partial' });
+      await new Promise((r) => setTimeout(r, 50));
+
+      // Emit a partial line (no trailing newline)
+      mockProc.stdout!.emit('data', Buffer.from('partial'));
+
+      // At this point, "partial" should NOT yet be in the channel
+      const linesBeforeFlush = channel.appendLine.args.map((a: any[]) => a[0] as string);
+      assert.ok(!linesBeforeFlush.some((l: string) => l === 'partial'), 'partial line should be buffered');
+
+      // Now emit close to flush
+      mockProc.emit('close', 0, null);
+
+      const linesAfterFlush = channel.appendLine.args.map((a: any[]) => a[0] as string);
+      assert.ok(linesAfterFlush.some((l: string) => l === 'partial'), 'partial line should be flushed on close');
+
+      mockProc.emit('exit', 0, null);
+      await resultPromise;
+    });
+
+    it('writes COMPLETED footer with duration and finding count', async () => {
+      const mockProc = createMockProcess();
+      spawnStub.returns(mockProc);
+      const channel = createMockChannel();
+
+      const scanner = new ScannerService(db, projectId, spawnStub, channel as any);
+      scanner.setConfigOverride({ ashPath: 'ash', ashMode: 'local', scanTimeout: 600 });
+
+      const resultPromise = scanner.startScan({ targetPath: '/test/channel-completed' });
+      await new Promise((r) => setTimeout(r, 50));
+
+      mockProc.emit('exit', 0, null);
+      await resultPromise;
+
+      const lines = channel.appendLine.args.map((a: any[]) => a[0] as string);
+      assert.ok(lines.some((l: string) => l.includes('ASH Scan Completed')), 'footer should show "ASH Scan Completed"');
+      assert.ok(lines.some((l: string) => l.includes('COMPLETED')), 'footer should show COMPLETED status');
+      assert.ok(lines.some((l: string) => l.includes('Duration:')), 'footer should show duration');
+      assert.ok(lines.some((l: string) => l.includes('Findings:')), 'footer should show finding count');
+    });
+
+    it('writes FAILED footer with error message', async () => {
+      const mockProc = createMockProcess();
+      spawnStub.returns(mockProc);
+      const channel = createMockChannel();
+
+      const scanner = new ScannerService(db, projectId, spawnStub, channel as any);
+      scanner.setConfigOverride({ ashPath: 'ash', ashMode: 'local', scanTimeout: 600 });
+
+      const resultPromise = scanner.startScan({ targetPath: '/test/channel-failed' });
+      await new Promise((r) => setTimeout(r, 50));
+
+      mockProc.stderr!.emit('data', Buffer.from('Error: config not found'));
+      mockProc.emit('exit', 1, null);
+      await resultPromise;
+
+      const lines = channel.appendLine.args.map((a: any[]) => a[0] as string);
+      assert.ok(lines.some((l: string) => l.includes('ASH Scan Failed')), 'footer should show "ASH Scan Failed"');
+      assert.ok(lines.some((l: string) => l.includes('FAILED')), 'footer should show FAILED status');
+      assert.ok(lines.some((l: string) => l.includes('Error:')), 'footer should show error');
+    });
+
+    it('writes CANCELLED footer with duration', async () => {
+      const mockProc = createMockProcess();
+      spawnStub.returns(mockProc);
+      const channel = createMockChannel();
+
+      const scanner = new ScannerService(db, projectId, spawnStub, channel as any);
+      scanner.setConfigOverride({ ashPath: 'ash', ashMode: 'local', scanTimeout: 600 });
+
+      const resultPromise = scanner.startScan({ targetPath: '/test/channel-cancelled' });
+      await new Promise((r) => setTimeout(r, 50));
+
+      const runningScan = await db.scan.findFirst({
+        where: { projectId, status: 'RUNNING' },
+        orderBy: { startedAt: 'desc' },
+      });
+      assert.ok(runningScan);
+
+      await scanner.cancelScan(runningScan!.id);
+
+      const lines = channel.appendLine.args.map((a: any[]) => a[0] as string);
+      assert.ok(lines.some((l: string) => l.includes('ASH Scan Cancelled')), 'footer should show "ASH Scan Cancelled"');
+      assert.ok(lines.some((l: string) => l.includes('Duration:')), 'footer should show duration');
+
+      mockProc.emit('exit', null, 'SIGTERM');
+      await resultPromise.catch(() => {});
+    });
+
+    it('writes ENOENT error message to channel', async () => {
+      const mockProc = createMockProcess();
+      spawnStub.returns(mockProc);
+      const channel = createMockChannel();
+
+      const scanner = new ScannerService(db, projectId, spawnStub, channel as any);
+      scanner.setConfigOverride({ ashPath: 'ash-missing', ashMode: 'local', scanTimeout: 600 });
+
+      const resultPromise = scanner.startScan({ targetPath: '/test/channel-enoent' });
+      await new Promise((r) => setTimeout(r, 50));
+
+      const err = new Error('spawn ash-missing ENOENT') as NodeJS.ErrnoException;
+      err.code = 'ENOENT';
+      mockProc.emit('error', err);
+
+      await resultPromise;
+
+      const lines = channel.appendLine.args.map((a: any[]) => a[0] as string);
+      assert.ok(
+        lines.some((l: string) => l.includes('ASH CLI not found')),
+        'should write ENOENT message to channel',
+      );
+      assert.ok(
+        lines.some((l: string) => l.includes('ash-missing')),
+        'should include the configured path',
+      );
+    });
+
+    it('works without an output channel (backward compatibility)', async () => {
+      const mockProc = createMockProcess();
+      spawnStub.returns(mockProc);
+
+      // No channel passed — 3-arg constructor
+      const scanner = new ScannerService(db, projectId, spawnStub);
+      scanner.setConfigOverride({ ashPath: 'ash', ashMode: 'local', scanTimeout: 600 });
+
+      const resultPromise = scanner.startScan({ targetPath: '/test/no-channel' });
+      await new Promise((r) => setTimeout(r, 50));
+
+      mockProc.stdout!.emit('data', Buffer.from('some output\n'));
+      mockProc.emit('exit', 0, null);
+
+      const result = await resultPromise;
+      assert.equal(result.status, 'COMPLETED');
+    });
+  });
 });

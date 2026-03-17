@@ -42,8 +42,12 @@ export async function activate(context: vscode.ExtensionContext) {
     return;
   }
 
+  // Create ASH Output Channel for real-time CLI output streaming
+  const ashChannel = vscode.window.createOutputChannel('ASH');
+  context.subscriptions.push(ashChannel);
+
   // Initialize scanner service and recover stale scans (FR-017)
-  const scanner = new ScannerService(db, project.id);
+  const scanner = new ScannerService(db, project.id, undefined, ashChannel);
   try {
     const recovered = await scanner.recoverStaleScans();
     if (recovered > 0) {
