@@ -74,7 +74,7 @@ export async function activate(context: vscode.ExtensionContext) {
   const findingsService = new FindingsService(db, project.id);
 
   // Findings editor panel manager
-  const findingsPanelManager = new FindingsPanelManager(context.extensionUri, db);
+  const findingsPanelManager = new FindingsPanelManager(context.extensionUri);
   findingsPanelManager.setScanner(scanner);
   findingsPanelManager.setFindingsService(findingsService);
 

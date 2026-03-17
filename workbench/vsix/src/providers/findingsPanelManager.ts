@@ -1,5 +1,4 @@
 import * as vscode from 'vscode';
-import type { PrismaClient } from '@prisma/client';
 import { getWebviewHtml } from './webviewHtml';
 import type { WebviewToExtMessage } from '../models/messages';
 import type { FindingRow } from '../models/types';
@@ -13,7 +12,6 @@ export class FindingsPanelManager {
 
   constructor(
     private readonly extensionUri: vscode.Uri,
-    private readonly db: PrismaClient,
   ) {}
 
   setScanner(scanner: ScannerService): void {
@@ -164,18 +162,37 @@ export class FindingsPanelManager {
         break;
       }
       case 'setDisposition': {
-        try {
-          const updated = await this.db.finding.update({
-            where: { id: message.payload.findingId },
-            data: { disposition: message.payload.disposition },
-          });
-          this.panel?.webview.postMessage({
-            type: 'dispositionUpdated',
-            payload: { findingId: updated.id, disposition: updated.disposition },
-          });
-          await this.postStateUpdate();
-        } catch (err) {
-          console.error('[ASH] Failed to update disposition:', err);
+        if (this.findingsService) {
+          try {
+            const updated = await this.findingsService.setDisposition(
+              message.payload.findingId,
+              message.payload.disposition,
+            );
+            this.panel?.webview.postMessage({
+              type: 'dispositionUpdated',
+              payload: { findingId: updated.id, disposition: updated.disposition },
+            });
+            await this.postStateUpdate();
+          } catch (err) {
+            console.error('[ASH] Failed to update disposition:', err);
+          }
+        }
+        break;
+      }
+      case 'setNotes': {
+        if (this.findingsService) {
+          try {
+            const updated = await this.findingsService.setNotes(
+              message.payload.findingId,
+              message.payload.notes,
+            );
+            this.panel?.webview.postMessage({
+              type: 'notesUpdated',
+              payload: { findingId: updated.id, notes: updated.notes },
+            });
+          } catch (err) {
+            console.error('[ASH] Failed to update notes:', err);
+          }
         }
         break;
       }
