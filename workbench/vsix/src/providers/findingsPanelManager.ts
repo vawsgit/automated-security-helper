@@ -5,10 +5,12 @@ import type { WebviewToExtMessage } from '../models/messages';
 import type { FindingRow } from '../models/types';
 import { mapFindingToRow } from '../models/mappers';
 import type { ScannerService } from '../services/scanner';
+import type { FindingsService } from '../services/findings';
 
 export class FindingsPanelManager {
   private panel: vscode.WebviewPanel | undefined;
   private scanner: ScannerService | undefined;
+  private findingsService: FindingsService | undefined;
 
   constructor(
     private readonly extensionUri: vscode.Uri,
@@ -17,6 +19,10 @@ export class FindingsPanelManager {
 
   setScanner(scanner: ScannerService): void {
     this.scanner = scanner;
+  }
+
+  setFindingsService(service: FindingsService): void {
+    this.findingsService = service;
   }
 
   public showFindings(scanId: string, targetPath?: string): void {
@@ -80,6 +86,19 @@ export class FindingsPanelManager {
     });
   }
 
+  private async postStateUpdate(): Promise<void> {
+    if (!this.findingsService) {
+      return;
+    }
+    const scans = await this.findingsService.getScanSummaries();
+    const summary = await this.findingsService.getSummary();
+    const scanTargets = await this.findingsService.getScanTargets();
+    this.panel?.webview.postMessage({
+      type: 'stateUpdate',
+      payload: { scans, summary, scanTargets },
+    });
+  }
+
   public showScanning(scanId: string, targetPath: string): void {
     if (this.panel) {
       this.panel.reveal(vscode.ViewColumn.One);
@@ -126,13 +145,14 @@ export class FindingsPanelManager {
           type: 'init',
           payload: { context: 'editorPanel', scanId: currentScanId },
         });
-        const findings = await this.db.finding.findMany({
-          where: { scanId: currentScanId },
-        });
-        this.panel?.webview.postMessage({
-          type: 'findingsUpdate',
-          payload: { scanId: currentScanId, findings: findings.map(mapFindingToRow) },
-        });
+        if (this.findingsService) {
+          const findings = await this.findingsService.getFindings(currentScanId);
+          this.panel?.webview.postMessage({
+            type: 'findingsUpdate',
+            payload: { scanId: currentScanId, findings },
+          });
+          await this.postStateUpdate();
+        }
         break;
       }
       case 'selectFinding': {
@@ -154,6 +174,7 @@ export class FindingsPanelManager {
             type: 'dispositionUpdated',
             payload: { findingId: updated.id, disposition: updated.disposition },
           });
+          await this.postStateUpdate();
         } catch (err) {
           console.error('[ASH] Failed to update disposition:', err);
         }
@@ -171,8 +192,10 @@ export class FindingsPanelManager {
               const scanId = this.scanner?.getCurrentScanId() ?? '';
               this.postProgress(scanId, progress.elapsed, progress.statusText);
             });
-            const findings = await this.db.finding.findMany({ where: { scanId: result.scanId } });
-            this.postFindingsUpdate(result.scanId, findings.map(mapFindingToRow));
+            if (this.findingsService) {
+              const findings = await this.findingsService.getFindings(result.scanId);
+              this.postFindingsUpdate(result.scanId, findings);
+            }
             if (result.status === 'FAILED' && result.errorMessage) {
               vscode.window.showErrorMessage(`ASH Scan failed: ${result.errorMessage}`);
             }
@@ -184,6 +207,14 @@ export class FindingsPanelManager {
               vscode.window.showErrorMessage(`ASH Scan error: ${errMsg}`);
             }
           }
+        }
+        break;
+      }
+      case 'applyFilters': {
+        if (this.findingsService) {
+          const { scanId, filters } = message.payload;
+          const findings = await this.findingsService.getFindings(scanId, filters);
+          this.postFindingsUpdate(scanId, findings);
         }
         break;
       }

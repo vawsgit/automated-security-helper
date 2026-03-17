@@ -1,5 +1,5 @@
-import type { Scan, Finding } from '@prisma/client';
-import type { ScanSummary, FindingRow, Severity, Disposition } from './types';
+import type { Scan, Finding, ScanTarget as PrismaScanTarget } from '@prisma/client';
+import type { ScanSummary, FindingRow, ScanTarget, Severity, Disposition, DispositionSummary } from './types';
 
 const SEVERITY_KEYS: Severity[] = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO'];
 
@@ -20,6 +20,27 @@ export function mapScanToSummary(scan: Scan): ScanSummary {
     sourceDirectory: scan.sourceDir,
     findingCount: scan.findingsCount,
     severityCounts,
+  };
+}
+
+export interface ScanTargetAggregates {
+  scanCount: number;
+  findingCount: number;
+  lastScannedAt: string | undefined;
+  severityCounts: Record<Severity, number>;
+  triageSummary: DispositionSummary;
+}
+
+export function mapScanTargetToView(target: PrismaScanTarget, aggregates: ScanTargetAggregates): ScanTarget {
+  return {
+    id: target.id,
+    path: target.path,
+    displayName: target.displayName,
+    lastScannedAt: aggregates.lastScannedAt,
+    scanCount: aggregates.scanCount,
+    findingCount: aggregates.findingCount,
+    severityCounts: aggregates.severityCounts,
+    triageSummary: aggregates.triageSummary,
   };
 }
 

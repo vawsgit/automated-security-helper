@@ -1,11 +1,11 @@
-import type { ScanSummary, FindingRow, DispositionSummary, Disposition } from './types';
+import type { ScanSummary, ScanTarget, FindingRow, DispositionSummary, Disposition, FilterState } from './types';
 
 // Extension Host -> WebView
 export type ExtToWebviewMessage =
   | { type: 'init'; payload: { context: 'sidebar' } }
   | { type: 'init'; payload: { context: 'editorPanel'; scanId: string } }
   | { type: 'init'; payload: { context: 'sink' } }
-  | { type: 'stateUpdate'; payload: { scans: ScanSummary[]; summary: DispositionSummary } }
+  | { type: 'stateUpdate'; payload: { scans: ScanSummary[]; summary: DispositionSummary; scanTargets: ScanTarget[] } }
   | { type: 'findingsUpdate'; payload: { scanId: string; findings: FindingRow[] } }
   | { type: 'findingDetail'; payload: FindingRow }
   | { type: 'dispositionUpdated'; payload: { findingId: string; disposition: Disposition } }
@@ -22,4 +22,5 @@ export type WebviewToExtMessage =
   | { type: 'startScan'; payload: { targetPath: string } }
   | { type: 'cancelScan'; payload: { scanId: string } }
   | { type: 'openFindings'; payload: { scanId: string } }
-  | { type: 'openSink' };
+  | { type: 'openSink' }
+  | { type: 'applyFilters'; payload: { scanId: string; filters: FilterState } };

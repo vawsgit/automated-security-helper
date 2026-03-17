@@ -93,3 +93,10 @@ export interface DispositionSummary {
   total: number;
   counts: Record<Disposition, number>;
 }
+
+export interface FilterState {
+  severity?: Severity[];
+  scanner?: string;
+  disposition?: Disposition[];
+  filePattern?: string;
+}
