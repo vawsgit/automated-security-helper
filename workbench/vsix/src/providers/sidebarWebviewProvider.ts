@@ -6,6 +6,7 @@ import type { ScanSummary, DispositionSummary } from '../models/types';
 import { mapScanToSummary } from '../models/mappers';
 import { mapFindingToRow } from '../models/mappers';
 import type { ScannerService } from '../services/scanner';
+import type { FindingsService } from '../services/findings';
 import type { FindingsPanelManager } from './findingsPanelManager';
 import type { SinkPanelManager } from './sinkPanelManager';
 import type { ScanTreeProvider } from './scanTreeProvider';
@@ -17,6 +18,7 @@ export class SidebarWebviewProvider implements vscode.WebviewViewProvider {
   private sinkPanelManager?: SinkPanelManager;
   private scanner?: ScannerService;
   private scanTreeProvider?: ScanTreeProvider;
+  private findingsService?: FindingsService;
 
   constructor(
     private readonly extensionUri: vscode.Uri,
@@ -38,6 +40,10 @@ export class SidebarWebviewProvider implements vscode.WebviewViewProvider {
 
   setScanTreeProvider(provider: ScanTreeProvider): void {
     this.scanTreeProvider = provider;
+  }
+
+  setFindingsService(service: FindingsService): void {
+    this.findingsService = service;
   }
 
   resolveWebviewView(
@@ -71,21 +77,32 @@ export class SidebarWebviewProvider implements vscode.WebviewViewProvider {
   }
 
   private async queryStateAndPost(): Promise<void> {
-    const scans = await this.db.scan.findMany({
-      where: { projectId: this.project.id },
-      orderBy: { startedAt: 'desc' },
-    });
-    const totalFindings = await this.db.finding.count({
-      where: { projectId: this.project.id },
-    });
-    const summary: DispositionSummary = {
-      total: totalFindings,
-      counts: { PENDING: totalFindings, FIX: 0, SUPPRESS: 0, DEFER: 0 },
-    };
-    this.view?.webview.postMessage({
-      type: 'stateUpdate',
-      payload: { scans: scans.map(mapScanToSummary), summary },
-    });
+    if (this.findingsService) {
+      const scans = await this.findingsService.getScanSummaries();
+      const summary = await this.findingsService.getSummary();
+      const scanTargets = await this.findingsService.getScanTargets();
+      this.view?.webview.postMessage({
+        type: 'stateUpdate',
+        payload: { scans, summary, scanTargets },
+      });
+    } else {
+      // Fallback: inline queries without FindingsService
+      const scans = await this.db.scan.findMany({
+        where: { projectId: this.project.id },
+        orderBy: { startedAt: 'desc' },
+      });
+      const totalFindings = await this.db.finding.count({
+        where: { projectId: this.project.id },
+      });
+      const summary: DispositionSummary = {
+        total: totalFindings,
+        counts: { PENDING: totalFindings, FIX: 0, SUPPRESS: 0, DEFER: 0 },
+      };
+      this.view?.webview.postMessage({
+        type: 'stateUpdate',
+        payload: { scans: scans.map(mapScanToSummary), summary, scanTargets: [] },
+      });
+    }
   }
 
   private handleMessage(message: WebviewToExtMessage): void {

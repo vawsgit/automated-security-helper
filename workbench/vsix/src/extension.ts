@@ -7,6 +7,7 @@ import { ScanTreeProvider } from './providers/scanTreeProvider';
 import { SidebarWebviewProvider } from './providers/sidebarWebviewProvider';
 import { FindingsPanelManager } from './providers/findingsPanelManager';
 import { SinkPanelManager } from './providers/sinkPanelManager';
+import { FindingsService } from './services/findings';
 
 export async function activate(context: vscode.ExtensionContext) {
   console.log('[ASH] Activating ASH Workbench extension');
@@ -65,9 +66,13 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.window.registerTreeDataProvider('ashWorkbench.scanHistory', scanTreeProvider),
   );
 
+  // Findings service
+  const findingsService = new FindingsService(db, project.id);
+
   // Findings editor panel manager
   const findingsPanelManager = new FindingsPanelManager(context.extensionUri, db);
   findingsPanelManager.setScanner(scanner);
+  findingsPanelManager.setFindingsService(findingsService);
 
   // Kitchen Sink panel manager (dev only)
   const sinkPanelManager = new SinkPanelManager(context.extensionUri);
@@ -85,6 +90,7 @@ export async function activate(context: vscode.ExtensionContext) {
   sidebarProvider.setSinkPanelManager(sinkPanelManager);
   sidebarProvider.setScanner(scanner);
   sidebarProvider.setScanTreeProvider(scanTreeProvider);
+  sidebarProvider.setFindingsService(findingsService);
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(SidebarWebviewProvider.viewType, sidebarProvider),
   );

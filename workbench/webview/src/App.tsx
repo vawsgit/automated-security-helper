@@ -10,7 +10,6 @@ import { ScanDetailView } from './components/ScanDetailView';
 import { ScanProgressView } from './components/ScanProgressView';
 import { EmptyStateView } from './components/EmptyStateView';
 import SinkPage from './pages/sink/SinkPage';
-import { mockProject, mockScans, mockFindings, mockSummary, mockScanTargets, updateMockDisposition, updateMockNotes, recomputeScanTargets } from './mock-data';
 import type { ExtToWebviewMessage } from './types/messages';
 import type { Project, ScanTarget, ScanSummary, FindingRow, DispositionSummary, Disposition } from './types/types';
 
@@ -59,18 +58,18 @@ function recomputeSummary(findings: FindingRow[]): DispositionSummary {
 
 const initialState: AppState = {
   context: 'unknown',
-  view: 'dashboard',
+  view: 'loading',
   viewHistory: [],
-  project: mockProject,
-  scanId: mockScans[0]?.id,
-  scans: mockScans,
-  summary: mockSummary,
-  findings: mockFindings,
+  project: { id: '', name: '', rootPath: '' },
+  scanId: undefined,
+  scans: [],
+  summary: { total: 0, counts: { PENDING: 0, FIX: 0, SUPPRESS: 0, DEFER: 0 } },
+  findings: [],
   selectedFinding: undefined,
   targetPath: undefined,
   scanElapsed: 0,
   scanStatus: '',
-  scanTargets: mockScanTargets,
+  scanTargets: [],
   selectedScanTargetId: undefined,
 };
 
@@ -88,20 +87,27 @@ function reducer(state: AppState, action: AppAction): AppState {
           }
           return { ...state, context: 'editorPanel', scanId: msg.payload.scanId, view: 'dashboard' };
         case 'stateUpdate':
-          return { ...state, scans: msg.payload.scans, summary: msg.payload.summary };
+          return {
+            ...state,
+            scans: msg.payload.scans,
+            summary: msg.payload.summary,
+            scanTargets: msg.payload.scanTargets,
+            view: state.view === 'loading' ? 'dashboard' : state.view,
+          };
         case 'findingsUpdate':
           return { ...state, findings: msg.payload.findings, view: 'findingList' };
         case 'findingDetail':
           return { ...state, selectedFinding: msg.payload, view: 'findingDetail' };
         case 'dispositionUpdated': {
-          const findings = updateMockDisposition(state.findings, msg.payload.findingId, msg.payload.disposition);
+          const findings = state.findings.map(f =>
+            f.id === msg.payload.findingId ? { ...f, disposition: msg.payload.disposition } : f
+          );
           const selectedFinding = state.selectedFinding?.id === msg.payload.findingId
             ? { ...state.selectedFinding, disposition: msg.payload.disposition }
             : state.selectedFinding;
           return {
             ...state, findings, selectedFinding,
             summary: recomputeSummary(findings),
-            scanTargets: recomputeScanTargets(findings, state.scans),
           };
         }
         case 'scanStarted':
@@ -156,18 +162,21 @@ function reducer(state: AppState, action: AppAction): AppState {
         view: 'scanDetail',
       };
     case 'SET_DISPOSITION': {
-      const findings = updateMockDisposition(state.findings, action.findingId, action.disposition);
+      const findings = state.findings.map(f =>
+        f.id === action.findingId ? { ...f, disposition: action.disposition } : f
+      );
       const selectedFinding = state.selectedFinding?.id === action.findingId
         ? { ...state.selectedFinding, disposition: action.disposition }
         : state.selectedFinding;
       return {
         ...state, findings, selectedFinding,
         summary: recomputeSummary(findings),
-        scanTargets: recomputeScanTargets(findings, state.scans),
       };
     }
     case 'SET_NOTES': {
-      const findings = updateMockNotes(state.findings, action.findingId, action.notes);
+      const findings = state.findings.map(f =>
+        f.id === action.findingId ? { ...f, notes: action.notes } : f
+      );
       const selectedFinding = state.selectedFinding?.id === action.findingId
         ? { ...state.selectedFinding, notes: action.notes }
         : state.selectedFinding;
