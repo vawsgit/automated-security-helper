@@ -3,7 +3,6 @@ import type { PrismaClient } from '@prisma/client';
 import { getWebviewHtml } from './webviewHtml';
 import type { WebviewToExtMessage } from '../models/messages';
 import type { FindingRow } from '../models/types';
-import { mapFindingToRow } from '../models/mappers';
 import type { ScannerService } from '../services/scanner';
 import type { FindingsService } from '../services/findings';
 
@@ -156,11 +155,11 @@ export class FindingsPanelManager {
         break;
       }
       case 'selectFinding': {
-        const finding = await this.db.finding.findUnique({
-          where: { id: message.payload.findingId },
-        });
-        if (finding) {
-          this.panel?.webview.postMessage({ type: 'findingDetail', payload: mapFindingToRow(finding) });
+        if (this.findingsService) {
+          const detail = await this.findingsService.getFindingDetail(message.payload.findingId);
+          if (detail) {
+            this.panel?.webview.postMessage({ type: 'findingDetail', payload: detail });
+          }
         }
         break;
       }
