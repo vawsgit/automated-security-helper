@@ -34,7 +34,6 @@ const LEVEL_TO_SEVERITY: Record<string, Severity> = {
   none: 'INFO',
 };
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function extractSeverity(result: SarifResult, _run?: SarifRun): Severity {
   const ashSeverity = result.properties?.['severity'] ?? result.properties?.['ash/severity'];
   if (typeof ashSeverity === 'string') {

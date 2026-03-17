@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import type { PrismaClient, Project } from '@prisma/client';
 import { getWebviewHtml } from './webviewHtml';
 import type { WebviewToExtMessage } from '../models/messages';
 import { getMockFindings, getMockFindingDetail, updateDisposition } from '../mock/data';
@@ -6,7 +7,11 @@ import { getMockFindings, getMockFindingDetail, updateDisposition } from '../moc
 export class FindingsPanelManager {
   private panel: vscode.WebviewPanel | undefined;
 
-  constructor(private readonly extensionUri: vscode.Uri) {}
+  constructor(
+    private readonly extensionUri: vscode.Uri,
+    _db: PrismaClient,
+    _project: Project,
+  ) {}
 
   public showFindings(scanId: string, targetPath?: string): void {
     if (this.panel) {

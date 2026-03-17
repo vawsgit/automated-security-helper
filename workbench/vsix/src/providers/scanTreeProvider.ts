@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import type { PrismaClient, Project } from '@prisma/client';
 import type { ScanSummary } from '../models/types';
 import { getMockScans } from '../mock/data';
 
@@ -7,6 +8,11 @@ export class ScanTreeProvider implements vscode.TreeDataProvider<ScanTreeItem> {
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
   private selectedScanId: string | undefined;
+
+  constructor(
+    _db: PrismaClient,
+    _project: Project,
+  ) {}
 
   getTreeItem(element: ScanTreeItem): vscode.TreeItem {
     return element;

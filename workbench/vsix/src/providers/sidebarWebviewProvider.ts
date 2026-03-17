@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import type { PrismaClient, Project } from '@prisma/client';
 import { getWebviewHtml } from './webviewHtml';
 import type { WebviewToExtMessage } from '../models/messages';
 import { getMockScans, getMockSummary } from '../mock/data';
@@ -11,7 +12,11 @@ export class SidebarWebviewProvider implements vscode.WebviewViewProvider {
   private findingsPanelManager?: FindingsPanelManager;
   private sinkPanelManager?: SinkPanelManager;
 
-  constructor(private readonly extensionUri: vscode.Uri) {}
+  constructor(
+    private readonly extensionUri: vscode.Uri,
+    _db: PrismaClient,
+    _project: Project,
+  ) {}
 
   setFindingsPanelManager(manager: FindingsPanelManager): void {
     this.findingsPanelManager = manager;
