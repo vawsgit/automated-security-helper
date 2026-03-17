@@ -73,6 +73,31 @@
           "group": "ashWorkbench@1"
         }
       ]
+    },
+    "configuration": {
+      "title": "ASH Workbench",
+      "properties": {
+        "ashWorkbench.ashPath": {
+          "type": "string",
+          "default": "ash",
+          "description": "Path to the ASH CLI executable"
+        },
+        "ashWorkbench.ashMode": {
+          "type": "string",
+          "enum": [
+            "local",
+            "container"
+          ],
+          "default": "local",
+          "description": "ASH execution mode (local or container)"
+        },
+        "ashWorkbench.scanTimeout": {
+          "type": "number",
+          "default": 600,
+          "minimum": 30,
+          "description": "Scan timeout in seconds"
+        }
+      }
     }
   },
   "scripts": {

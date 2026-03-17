@@ -3,6 +3,7 @@ import { registerAllCommands } from './commands/index';
 import { setFindingsPanelManagerRef } from './commands/scanCommands';
 import { DatabaseService } from './services/database';
 import { ensureProject } from './services/project';
+import { ScannerService } from './services/scanner';
 import { ScanTreeProvider } from './providers/scanTreeProvider';
 import { SidebarWebviewProvider } from './providers/sidebarWebviewProvider';
 import { FindingsPanelManager } from './providers/findingsPanelManager';
@@ -39,6 +40,17 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.window.showErrorMessage('ASH Workbench: Failed to set up project.');
     await DatabaseService.close();
     return;
+  }
+
+  // Initialize scanner service and recover stale scans (FR-017)
+  const scanner = new ScannerService(db, project.id);
+  try {
+    const recovered = await scanner.recoverStaleScans();
+    if (recovered > 0) {
+      console.log(`[ASH] Recovered ${recovered} stale scan(s) from previous session`);
+    }
+  } catch (err) {
+    console.error('[ASH] Stale scan recovery failed:', err);
   }
 
   // FR-007: Register database cleanup disposable
