@@ -1,26 +1,32 @@
 <!--
   Sync Impact Report
   ==================
-  Version change: 0.0.0 (template) -> 1.0.0
-  Bump rationale: MAJOR - initial ratification from empty template
+  Version change: 1.0.0 -> 1.1.0
+  Bump rationale: MINOR - materially expanded Architecture Constraints
+    (4th entity: ScanTarget) and Conventions (service layer, mapper,
+    loading state patterns established across Specs 001-006)
 
-  Modified principles: N/A (initial population)
-  Added sections:
-    - Principle I: VS Code Native (NON-NEGOTIABLE)
-    - Principle II: Extension Host Owns State (NON-NEGOTIABLE)
-    - Principle III: Ship Fast / Simplicity First
-    - Principle IV: Typed Contracts at Boundaries
-    - Principle V: Theme Integration Over Custom Design
-    - Principle VI: Security by Default
-    - Architecture Constraints
-    - Quality and Coding Conventions
-    - Governance
+  Modified principles: None renamed or redefined
+  Added sections: None (existing sections expanded)
   Removed sections: None
 
+  Section changes:
+    - Architecture Constraints > Data Model: 3 entities -> 4 entities
+      (added ScanTarget)
+    - Architecture Constraints > Core Loop: updated to include scan
+      targets as organizing concept
+    - Quality and Coding Conventions > Extension Host Conventions:
+      added service layer and mapper patterns
+    - Quality and Coding Conventions > WebView Conventions:
+      added loading state and mock-data retention patterns
+
   Templates checked:
-    - .specify/templates/plan-template.md ........... OK (Constitution Check gate is generic)
-    - .specify/templates/spec-template.md ........... OK (no constitution references)
-    - .specify/templates/tasks-template.md .......... OK (no constitution references)
+    - .specify/templates/plan-template.md ........... OK (Constitution
+      Check gate is generic, reads principles dynamically)
+    - .specify/templates/spec-template.md ........... OK (no constitution
+      references)
+    - .specify/templates/tasks-template.md .......... OK (no constitution
+      references)
     - .specify/templates/commands/*.md .............. OK (no files present)
 
   Follow-up TODOs: None
@@ -189,19 +195,26 @@ workbench/
 | Testing | Mocha (unit, Node.js) + `@vscode/test-electron` (integration) | sinon for mocking, `node:assert/strict` |
 | Linting | ESLint (flat config, typescript-eslint) + Prettier | `eslint-config-prettier` last in config array |
 
-### Data Model (3 Entities)
+### Data Model (4 Entities)
 
 - **Project** -- 1:1 with workspace folder, root aggregate
-- **Scan** -- One ASH CLI execution (status: RUNNING/COMPLETED/FAILED/CANCELLED)
-- **Finding** -- One security issue, identified across scans by
-  `(ruleId, file)` composite key
+- **ScanTarget** -- A directory path that has been scanned, unique per
+  project by `(projectId, path)`. Organizes scans and findings by
+  target location. Carries computed aggregates in the view layer
+  (finding counts, severity breakdown, triage progress)
+- **Scan** -- One ASH CLI execution, linked to a ScanTarget
+  (status: RUNNING/COMPLETED/FAILED/CANCELLED)
+- **Finding** -- One security issue, linked to both Scan and ScanTarget.
+  Identified across scans by `(scanTargetId, ruleId, file)` composite
+  index
 - **Disposition** -- Finding triage state: PENDING, FIX, SUPPRESS, DEFER
 
 ### Core Loop
 
-**Scan** -> **View** (findings with filters) -> **Navigate** (click to open
-file at line) -> **Triage** (set disposition) -> **Track** (cumulative
-progress)
+**Scan** (a target path) -> **View** (findings with filters by severity,
+scanner, disposition, file pattern) -> **Navigate** (click to open file at
+line) -> **Triage** (set disposition per finding) -> **Track** (cumulative
+progress across scan targets via dashboard)
 
 ## Quality and Coding Conventions
 
@@ -239,13 +252,23 @@ The Kitchen Sink (`pages/sink/`) renders all UI components in a single
 panel. Every new ShadCN or app-specific component MUST have a Kitchen Sink
 demo that exercises all variants in both dark and light themes.
 
+`mock-data.ts` is retained exclusively for Kitchen Sink demos. Production
+code (App.tsx) MUST NOT import from `mock-data.ts`.
+
 ### Extension Host Conventions (vsix/)
 
 - Named exports for all modules
 - Services: classes with injected dependencies via constructor, async
-  methods
+  methods. Domain queries MUST go through service classes
+  (`DatabaseService`, `ScannerService`, `FindingsService`), not inline
+  Prisma calls in providers
 - Providers: implement VS Code interfaces (`TreeDataProvider`,
-  `WebviewViewProvider`)
+  `WebviewViewProvider`). Providers receive services via setter methods
+  (e.g., `setFindingsService()`)
+- Mappers: `vsix/src/models/mappers.ts` contains pure functions that
+  translate Prisma models to WebView view types (`mapFindingToRow`,
+  `mapScanToSummary`, `mapScanTargetToView`). All Prisma-to-view
+  translation MUST go through mappers
 - Command IDs: `ashWorkbench.<verbNoun>`
   (e.g., `ashWorkbench.startScan`)
 - Setting keys: `ashWorkbench.<category>.<setting>`
@@ -264,6 +287,9 @@ demo that exercises all variants in both dark and light themes.
   and sink demos
 - Always use `cn()` utility when combining Tailwind classes with props
 - ShadCN `ui/` files are auto-generated -- do not hand-edit
+- Loading state pattern: App starts with empty state and `'loading'`
+  view. Transitions to `'dashboard'` on first `stateUpdate` message
+  from the extension host. No mock data in production paths
 
 ### Documentation Conventions (docs/)
 
@@ -297,4 +323,4 @@ demo that exercises all variants in both dark and light themes.
    removals or redefinitions, MINOR for new principles or material
    expansions, PATCH for clarifications and wording fixes.
 
-**Version**: 1.0.0 | **Ratified**: 2026-03-16 | **Last Amended**: 2026-03-16
+**Version**: 1.1.0 | **Ratified**: 2026-03-16 | **Last Amended**: 2026-03-17
