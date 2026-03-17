@@ -304,7 +304,11 @@ export class FindingsPanelManager {
       }
       case 'navigateToCode': {
         const filePath = message.payload.filePath;
-        const uri = vscode.Uri.file(filePath);
+        const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+        const absolutePath = workspaceRoot && !filePath.startsWith('/')
+          ? require('node:path').join(workspaceRoot, filePath)
+          : filePath;
+        const uri = vscode.Uri.file(absolutePath);
         const range = new vscode.Range(
           message.payload.startLine - 1, 0,
           message.payload.startLine - 1, 0

@@ -161,6 +161,7 @@ export class ScannerService {
         '--output-formats', 'sarif',
         '--no-color',
         '--progress',
+        '--verbose',
       ];
       if (config.ashMode === 'container') {
         args.push('--mode', 'container');
@@ -244,6 +245,7 @@ export class ScannerService {
         '--output-formats', 'sarif',
         '--no-color',
         '--progress',
+        '--verbose',
       ];
       if (config.ashMode === 'container') {
         args.push('--mode', 'container');
