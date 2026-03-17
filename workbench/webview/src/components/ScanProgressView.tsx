@@ -8,8 +8,15 @@ import { useState } from 'react';
 
 interface ScanProgressViewProps {
   targetPath?: string;
+  elapsed?: number;
   onNavigateDashboard: () => void;
   onNavigateScans: () => void;
+}
+
+function formatElapsed(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
 const mockScanners = [
@@ -34,7 +41,7 @@ const mockLogLines = (path: string) => [
   '[14:30:59] Running checkov...',
 ];
 
-export function ScanProgressView({ targetPath, onNavigateDashboard, onNavigateScans }: ScanProgressViewProps) {
+export function ScanProgressView({ targetPath, elapsed, onNavigateDashboard, onNavigateScans }: ScanProgressViewProps) {
   const [logOpen, setLogOpen] = useState(false);
   const completed = mockScanners.filter(s => s.status === 'completed').length;
   const total = mockScanners.length;
@@ -60,8 +67,8 @@ export function ScanProgressView({ targetPath, onNavigateDashboard, onNavigateSc
           {targetPath ?? '/src'} &middot; local mode
         </p>
 
-        {/* Elapsed time (static per KISS 6.2) */}
-        <p className="text-2xl font-mono">2:15</p>
+        {/* Elapsed time */}
+        <p className="text-2xl font-mono">{formatElapsed(elapsed ?? 0)}</p>
 
         {/* Progress bar */}
         <div className="w-full space-y-1">

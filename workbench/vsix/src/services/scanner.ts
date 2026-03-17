@@ -56,6 +56,10 @@ export class ScannerService {
     this.spawnFn = spawnFn ?? defaultSpawn;
   }
 
+  getCurrentScanId(): string | null {
+    return this.currentScanId;
+  }
+
   /** Override config for testing (avoids vscode.workspace.getConfiguration). */
   setConfigOverride(config: ScannerConfig): void {
     this.configOverride = config;

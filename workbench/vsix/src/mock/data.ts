@@ -213,7 +213,7 @@ const mockFindings: FindingRow[] = [
 ];
 
 // Mutable copy for in-memory disposition updates
-let findingsState = mockFindings.map(f => ({ ...f }));
+const findingsState = mockFindings.map(f => ({ ...f }));
 
 export function getMockProject(): Project {
   return mockProject;

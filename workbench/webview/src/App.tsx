@@ -29,6 +29,8 @@ interface AppState {
   findings: FindingRow[];
   selectedFinding: FindingRow | undefined;
   targetPath: string | undefined;
+  scanElapsed: number;
+  scanStatus: string;
   scanTargets: ScanTarget[];
   selectedScanTargetId: string | undefined;
 }
@@ -66,6 +68,8 @@ const initialState: AppState = {
   findings: mockFindings,
   selectedFinding: undefined,
   targetPath: undefined,
+  scanElapsed: 0,
+  scanStatus: '',
   scanTargets: mockScanTargets,
   selectedScanTargetId: undefined,
 };
@@ -104,8 +108,16 @@ function reducer(state: AppState, action: AppAction): AppState {
           return {
             ...state,
             viewHistory: [...state.viewHistory, state.view],
+            scanId: msg.payload.scanId,
             targetPath: msg.payload.targetPath,
             view: 'scanProgress',
+          };
+        case 'scanProgress':
+          return {
+            ...state,
+            scanId: msg.payload.scanId || state.scanId,
+            scanElapsed: msg.payload.elapsed,
+            scanStatus: msg.payload.status,
           };
         default:
           return state;
@@ -302,6 +314,7 @@ function EditorPanel({ state, dispatch }: { state: AppState; dispatch: React.Dis
         return (
           <ScanProgressView
             targetPath={state.targetPath}
+            elapsed={state.scanElapsed}
             onNavigateDashboard={navigateDashboard}
             onNavigateScans={navigateScans}
           />

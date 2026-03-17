@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
 import { registerAllCommands } from './commands/index';
-import { setFindingsPanelManagerRef } from './commands/scanCommands';
 import { DatabaseService } from './services/database';
 import { ensureProject } from './services/project';
 import { ScannerService } from './services/scanner';
@@ -60,9 +59,6 @@ export async function activate(context: vscode.ExtensionContext) {
     }),
   );
 
-  // Register commands
-  registerAllCommands(context);
-
   // Tree view
   const scanTreeProvider = new ScanTreeProvider(db, project);
   context.subscriptions.push(
@@ -70,8 +66,8 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   // Findings editor panel manager
-  const findingsPanelManager = new FindingsPanelManager(context.extensionUri, db, project);
-  setFindingsPanelManagerRef(findingsPanelManager);
+  const findingsPanelManager = new FindingsPanelManager(context.extensionUri, db);
+  findingsPanelManager.setScanner(scanner);
 
   // Kitchen Sink panel manager (dev only)
   const sinkPanelManager = new SinkPanelManager(context.extensionUri);
@@ -87,9 +83,14 @@ export async function activate(context: vscode.ExtensionContext) {
   const sidebarProvider = new SidebarWebviewProvider(context.extensionUri, db, project);
   sidebarProvider.setFindingsPanelManager(findingsPanelManager);
   sidebarProvider.setSinkPanelManager(sinkPanelManager);
+  sidebarProvider.setScanner(scanner);
+  sidebarProvider.setScanTreeProvider(scanTreeProvider);
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(SidebarWebviewProvider.viewType, sidebarProvider),
   );
+
+  // Register scan commands with all dependencies
+  registerAllCommands(context, scanner, db, project.id, findingsPanelManager, sidebarProvider, scanTreeProvider);
 
   // Select scan command — wired to tree item clicks and opens the findings panel
   context.subscriptions.push(
@@ -101,8 +102,16 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // Open workbench command — opens findings for the first completed scan
   context.subscriptions.push(
-    vscode.commands.registerCommand('ashWorkbench.openWorkbench', () => {
-      findingsPanelManager.showFindings('scan-001');
+    vscode.commands.registerCommand('ashWorkbench.openWorkbench', async () => {
+      const latestScan = await db.scan.findFirst({
+        where: { projectId: project.id, status: 'COMPLETED' },
+        orderBy: { startedAt: 'desc' },
+      });
+      if (latestScan) {
+        findingsPanelManager.showFindings(latestScan.id);
+      } else {
+        vscode.window.showInformationMessage('ASH: No completed scans found. Run a scan first.');
+      }
     }),
   );
 
