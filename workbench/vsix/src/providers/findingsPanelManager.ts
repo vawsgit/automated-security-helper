@@ -4,11 +4,13 @@ import type { WebviewToExtMessage } from '../models/messages';
 import type { FindingRow } from '../models/types';
 import type { ScannerService } from '../services/scanner';
 import type { FindingsService } from '../services/findings';
+import type { ScanTreeProvider } from './scanTreeProvider';
 
 export class FindingsPanelManager {
   private panel: vscode.WebviewPanel | undefined;
   private scanner: ScannerService | undefined;
   private findingsService: FindingsService | undefined;
+  private scanTreeProvider: ScanTreeProvider | undefined;
 
   constructor(
     private readonly extensionUri: vscode.Uri,
@@ -20,6 +22,10 @@ export class FindingsPanelManager {
 
   setFindingsService(service: FindingsService): void {
     this.findingsService = service;
+  }
+
+  setScanTreeProvider(provider: ScanTreeProvider): void {
+    this.scanTreeProvider = provider;
   }
 
   public showFindings(scanId: string, targetPath?: string): void {
@@ -231,6 +237,18 @@ export class FindingsPanelManager {
           const { scanId, filters } = message.payload;
           const findings = await this.findingsService.getFindings(scanId, filters);
           this.postFindingsUpdate(scanId, findings);
+        }
+        break;
+      }
+      case 'deleteScan': {
+        if (this.findingsService) {
+          try {
+            await this.findingsService.deleteScan(message.payload.scanId);
+            await this.postStateUpdate();
+            this.scanTreeProvider?.refresh();
+          } catch (err) {
+            console.error('[ASH] Failed to delete scan:', err);
+          }
         }
         break;
       }

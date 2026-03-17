@@ -11,6 +11,17 @@ export class FindingsService {
     private readonly projectId: string,
   ) {}
 
+  async deleteScan(scanId: string): Promise<void> {
+    const scan = await this.db.scan.findUnique({ where: { id: scanId } });
+    if (!scan) {
+      throw new Error(`Scan not found: ${scanId}`);
+    }
+    if (scan.status === 'RUNNING') {
+      throw new Error('Cannot delete a running scan');
+    }
+    await this.db.scan.delete({ where: { id: scanId } });
+  }
+
   async setDisposition(findingId: string, disposition: Disposition): Promise<FindingRow> {
     const updated = await this.db.finding.update({
       where: { id: findingId },

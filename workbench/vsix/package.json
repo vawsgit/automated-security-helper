@@ -56,6 +56,10 @@
       {
         "command": "ashWorkbench.scanFolder",
         "title": "ASH: Run Security Scan"
+      },
+      {
+        "command": "ashWorkbench.deleteScan",
+        "title": "ASH: Delete Scan"
       }
     ],
     "menus": {
@@ -63,6 +67,11 @@
         {
           "command": "ashWorkbench.openWorkbench",
           "when": "view == ashWorkbench.scanHistory",
+          "group": "navigation"
+        },
+        {
+          "command": "ashWorkbench.deleteScan",
+          "when": "view == ashWorkbench.scanHistory && viewItem =~ /scan\\.(completed|failed|cancelled)/",
           "group": "navigation"
         }
       ],

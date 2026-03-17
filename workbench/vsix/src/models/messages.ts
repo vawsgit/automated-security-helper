@@ -25,4 +25,5 @@ export type WebviewToExtMessage =
   | { type: 'cancelScan'; payload: { scanId: string } }
   | { type: 'openFindings'; payload: { scanId: string } }
   | { type: 'openSink' }
-  | { type: 'applyFilters'; payload: { scanId: string; filters: FilterState } };
+  | { type: 'applyFilters'; payload: { scanId: string; filters: FilterState } }
+  | { type: 'deleteScan'; payload: { scanId: string } };

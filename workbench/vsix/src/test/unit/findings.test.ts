@@ -137,6 +137,69 @@ describe('FindingsService', () => {
     });
   });
 
+  describe('deleteScan', () => {
+    it('removes scan and cascade-deletes findings', async () => {
+      const db = DatabaseService.client;
+      const scan = await db.scan.create({
+        data: {
+          projectId,
+          scanTargetId,
+          sourceDir: '/src',
+          status: 'COMPLETED',
+        },
+      });
+      await db.finding.create({
+        data: {
+          scanId: scan.id,
+          projectId,
+          scanTargetId,
+          ruleId: 'DEL1',
+          scanner: 'bandit',
+          severity: 'HIGH',
+          file: '/src/del.py',
+          startLine: 1,
+          title: 'To be deleted',
+          description: 'This finding should be cascade-deleted',
+        },
+      });
+
+      await service.deleteScan(scan.id);
+
+      const deletedScan = await db.scan.findUnique({ where: { id: scan.id } });
+      assert.equal(deletedScan, null);
+      const orphanedFindings = await db.finding.findMany({ where: { scanId: scan.id } });
+      assert.equal(orphanedFindings.length, 0);
+    });
+
+    it('throws for a non-existent scan ID', async () => {
+      await assert.rejects(
+        () => service.deleteScan('non-existent-scan-99999'),
+        /Scan not found/,
+      );
+    });
+
+    it('throws for a RUNNING scan', async () => {
+      const db = DatabaseService.client;
+      const scan = await db.scan.create({
+        data: {
+          projectId,
+          scanTargetId,
+          sourceDir: '/src',
+          status: 'RUNNING',
+        },
+      });
+
+      await assert.rejects(
+        () => service.deleteScan(scan.id),
+        /Cannot delete a running scan/,
+      );
+
+      // Clean up
+      await db.scan.update({ where: { id: scan.id }, data: { status: 'CANCELLED' } });
+      await db.scan.delete({ where: { id: scan.id } });
+    });
+  });
+
   describe('notes mapping from database', () => {
     it('maps notes from DB through getFindingDetail', async () => {
       const db = DatabaseService.client;

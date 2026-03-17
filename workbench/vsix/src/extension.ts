@@ -64,19 +64,21 @@ export async function activate(context: vscode.ExtensionContext) {
     }),
   );
 
+  // Findings service
+  const findingsService = new FindingsService(db, project.id);
+
   // Tree view
-  const scanTreeProvider = new ScanTreeProvider(db, project);
+  const scanTreeProvider = new ScanTreeProvider();
+  scanTreeProvider.setFindingsService(findingsService);
   context.subscriptions.push(
     vscode.window.registerTreeDataProvider('ashWorkbench.scanHistory', scanTreeProvider),
   );
-
-  // Findings service
-  const findingsService = new FindingsService(db, project.id);
 
   // Findings editor panel manager
   const findingsPanelManager = new FindingsPanelManager(context.extensionUri);
   findingsPanelManager.setScanner(scanner);
   findingsPanelManager.setFindingsService(findingsService);
+  findingsPanelManager.setScanTreeProvider(scanTreeProvider);
 
   // Kitchen Sink panel manager (dev only)
   const sinkPanelManager = new SinkPanelManager(context.extensionUri);
@@ -89,7 +91,7 @@ export async function activate(context: vscode.ExtensionContext) {
   }
 
   // Sidebar webview provider
-  const sidebarProvider = new SidebarWebviewProvider(context.extensionUri, db, project);
+  const sidebarProvider = new SidebarWebviewProvider(context.extensionUri);
   sidebarProvider.setFindingsPanelManager(findingsPanelManager);
   sidebarProvider.setSinkPanelManager(sinkPanelManager);
   sidebarProvider.setScanner(scanner);
@@ -100,13 +102,42 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   // Register scan commands with all dependencies
-  registerAllCommands(context, scanner, db, project.id, findingsPanelManager, sidebarProvider, scanTreeProvider);
+  registerAllCommands(context, scanner, findingsService, findingsPanelManager, sidebarProvider, scanTreeProvider);
 
   // Select scan command — wired to tree item clicks and opens the findings panel
   context.subscriptions.push(
     vscode.commands.registerCommand('ashWorkbench.selectScan', (scanId: string) => {
       scanTreeProvider.selectScan(scanId);
       findingsPanelManager.showFindings(scanId);
+    }),
+  );
+
+  // Delete scan command — deletes a scan with confirmation
+  context.subscriptions.push(
+    vscode.commands.registerCommand('ashWorkbench.deleteScan', async (item: unknown) => {
+      const scanId = item && typeof item === 'object' && 'scan' in item
+        ? (item as { scan: { id: string } }).scan.id
+        : scanTreeProvider.getSelectedScanId();
+      if (!scanId) {
+        vscode.window.showWarningMessage('ASH: No scan selected to delete.');
+        return;
+      }
+      const confirm = await vscode.window.showWarningMessage(
+        'Are you sure you want to delete this scan and all its findings?',
+        { modal: true },
+        'Delete',
+      );
+      if (confirm !== 'Delete') {
+        return;
+      }
+      try {
+        await findingsService.deleteScan(scanId);
+        scanTreeProvider.refresh();
+        vscode.window.showInformationMessage('ASH: Scan deleted.');
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        vscode.window.showErrorMessage(`ASH: Failed to delete scan: ${msg}`);
+      }
     }),
   );
 

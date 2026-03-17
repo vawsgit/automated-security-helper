@@ -1,29 +1,28 @@
 import * as vscode from 'vscode';
-import type { PrismaClient, Project } from '@prisma/client';
 import type { ScanSummary } from '../models/types';
-import { mapScanToSummary } from '../models/mappers';
+import type { FindingsService } from '../services/findings';
 
 export class ScanTreeProvider implements vscode.TreeDataProvider<ScanTreeItem> {
   private _onDidChangeTreeData = new vscode.EventEmitter<ScanTreeItem | undefined | void>();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
   private selectedScanId: string | undefined;
+  private findingsService: FindingsService | undefined;
 
-  constructor(
-    private readonly db: PrismaClient,
-    private readonly project: Project,
-  ) {}
+  setFindingsService(service: FindingsService): void {
+    this.findingsService = service;
+  }
 
   getTreeItem(element: ScanTreeItem): vscode.TreeItem {
     return element;
   }
 
   async getChildren(): Promise<ScanTreeItem[]> {
-    const scans = await this.db.scan.findMany({
-      where: { projectId: this.project.id },
-      orderBy: { startedAt: 'desc' },
-    });
-    return scans.map(scan => new ScanTreeItem(mapScanToSummary(scan)));
+    if (!this.findingsService) {
+      return [];
+    }
+    const scans = await this.findingsService.getScanSummaries();
+    return scans.map(scan => new ScanTreeItem(scan));
   }
 
   refresh(): void {
@@ -47,7 +46,7 @@ const statusIcons: Record<string, vscode.ThemeIcon> = {
   RUNNING: new vscode.ThemeIcon('sync~spin'),
 };
 
-class ScanTreeItem extends vscode.TreeItem {
+export class ScanTreeItem extends vscode.TreeItem {
   constructor(public readonly scan: ScanSummary) {
     const date = new Date(scan.startedAt);
     const label = date.toLocaleDateString('en-US', {

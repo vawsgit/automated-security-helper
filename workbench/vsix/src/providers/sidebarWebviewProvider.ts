@@ -1,10 +1,6 @@
 import * as vscode from 'vscode';
-import type { PrismaClient, Project } from '@prisma/client';
 import { getWebviewHtml } from './webviewHtml';
 import type { WebviewToExtMessage } from '../models/messages';
-import type { ScanSummary, DispositionSummary } from '../models/types';
-import { mapScanToSummary } from '../models/mappers';
-import { mapFindingToRow } from '../models/mappers';
 import type { ScannerService } from '../services/scanner';
 import type { FindingsService } from '../services/findings';
 import type { FindingsPanelManager } from './findingsPanelManager';
@@ -22,8 +18,6 @@ export class SidebarWebviewProvider implements vscode.WebviewViewProvider {
 
   constructor(
     private readonly extensionUri: vscode.Uri,
-    private readonly db: PrismaClient,
-    private readonly project: Project,
   ) {}
 
   setFindingsPanelManager(manager: FindingsPanelManager): void {
@@ -72,37 +66,17 @@ export class SidebarWebviewProvider implements vscode.WebviewViewProvider {
     });
   }
 
-  postStateUpdate(scans: ScanSummary[], summary: DispositionSummary): void {
-    this.view?.webview.postMessage({ type: 'stateUpdate', payload: { scans, summary } });
-  }
-
   private async queryStateAndPost(): Promise<void> {
-    if (this.findingsService) {
-      const scans = await this.findingsService.getScanSummaries();
-      const summary = await this.findingsService.getSummary();
-      const scanTargets = await this.findingsService.getScanTargets();
-      this.view?.webview.postMessage({
-        type: 'stateUpdate',
-        payload: { scans, summary, scanTargets },
-      });
-    } else {
-      // Fallback: inline queries without FindingsService
-      const scans = await this.db.scan.findMany({
-        where: { projectId: this.project.id },
-        orderBy: { startedAt: 'desc' },
-      });
-      const totalFindings = await this.db.finding.count({
-        where: { projectId: this.project.id },
-      });
-      const summary: DispositionSummary = {
-        total: totalFindings,
-        counts: { PENDING: totalFindings, FIX: 0, SUPPRESS: 0, DEFER: 0 },
-      };
-      this.view?.webview.postMessage({
-        type: 'stateUpdate',
-        payload: { scans: scans.map(mapScanToSummary), summary, scanTargets: [] },
-      });
+    if (!this.findingsService) {
+      return;
     }
+    const scans = await this.findingsService.getScanSummaries();
+    const summary = await this.findingsService.getSummary();
+    const scanTargets = await this.findingsService.getScanTargets();
+    this.view?.webview.postMessage({
+      type: 'stateUpdate',
+      payload: { scans, summary, scanTargets },
+    });
   }
 
   private handleMessage(message: WebviewToExtMessage): void {
@@ -125,6 +99,21 @@ export class SidebarWebviewProvider implements vscode.WebviewViewProvider {
           this.sinkPanelManager.show();
         }
         break;
+      case 'deleteScan':
+        this.handleDeleteScan(message.payload.scanId);
+        break;
+    }
+  }
+
+  private async handleDeleteScan(scanId: string): Promise<void> {
+    if (this.findingsService) {
+      try {
+        await this.findingsService.deleteScan(scanId);
+        await this.queryStateAndPost();
+        this.scanTreeProvider?.refresh();
+      } catch (err) {
+        console.error('[ASH] Failed to delete scan:', err);
+      }
     }
   }
 
@@ -155,9 +144,9 @@ export class SidebarWebviewProvider implements vscode.WebviewViewProvider {
       });
 
       // On completion, push updated findings to panel
-      if (this.findingsPanelManager) {
-        const findings = await this.db.finding.findMany({ where: { scanId: result.scanId } });
-        this.findingsPanelManager.postFindingsUpdate(result.scanId, findings.map(mapFindingToRow));
+      if (this.findingsPanelManager && this.findingsService) {
+        const findings = await this.findingsService.getFindings(result.scanId);
+        this.findingsPanelManager.postFindingsUpdate(result.scanId, findings);
       }
 
       // Refresh sidebar and tree

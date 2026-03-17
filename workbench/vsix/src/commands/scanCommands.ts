@@ -1,17 +1,14 @@
 import * as vscode from 'vscode';
-import type { PrismaClient } from '@prisma/client';
 import type { ScannerService } from '../services/scanner';
 import type { FindingsPanelManager } from '../providers/findingsPanelManager';
 import type { SidebarWebviewProvider } from '../providers/sidebarWebviewProvider';
 import type { ScanTreeProvider } from '../providers/scanTreeProvider';
-import { mapScanToSummary, mapFindingToRow } from '../models/mappers';
-import type { DispositionSummary } from '../models/types';
+import type { FindingsService } from '../services/findings';
 
 async function executeScan(
   targetPath: string,
   scanner: ScannerService,
-  db: PrismaClient,
-  projectId: string,
+  findingsService: FindingsService,
   findingsPanelManager: FindingsPanelManager,
   sidebarWebviewProvider: SidebarWebviewProvider,
   scanTreeProvider: ScanTreeProvider,
@@ -23,20 +20,9 @@ async function executeScan(
       sidebarWebviewProvider.postProgress(scanId, progress.elapsed, progress.statusText);
     });
 
-    // On completion, push updated state to all UI surfaces
-    const findings = await db.finding.findMany({ where: { scanId: result.scanId } });
-    findingsPanelManager.postFindingsUpdate(result.scanId, findings.map(mapFindingToRow));
-
-    const scans = await db.scan.findMany({
-      where: { projectId },
-      orderBy: { startedAt: 'desc' },
-    });
-    const totalFindings = await db.finding.count({ where: { projectId } });
-    const summary: DispositionSummary = {
-      total: totalFindings,
-      counts: { PENDING: totalFindings, FIX: 0, SUPPRESS: 0, DEFER: 0 },
-    };
-    sidebarWebviewProvider.postStateUpdate(scans.map(mapScanToSummary), summary);
+    // On completion, push updated findings to panel
+    const findings = await findingsService.getFindings(result.scanId);
+    findingsPanelManager.postFindingsUpdate(result.scanId, findings);
     scanTreeProvider.refresh();
 
     if (result.status === 'FAILED' && result.errorMessage) {
@@ -55,8 +41,7 @@ async function executeScan(
 export function registerScanCommands(
   context: vscode.ExtensionContext,
   scanner: ScannerService,
-  db: PrismaClient,
-  projectId: string,
+  findingsService: FindingsService,
   findingsPanelManager: FindingsPanelManager,
   sidebarWebviewProvider: SidebarWebviewProvider,
   scanTreeProvider: ScanTreeProvider,
@@ -79,12 +64,9 @@ export function registerScanCommands(
         detail: workspaceRoot,
       });
 
-      // Existing scan targets from DB
+      // Existing scan targets from service
       try {
-        const targets = await db.scanTarget.findMany({
-          where: { projectId },
-          orderBy: { updatedAt: 'desc' },
-        });
+        const targets = await findingsService.getScanTargets();
         for (const target of targets) {
           if (target.path !== workspaceRoot) {
             items.push({
@@ -95,7 +77,7 @@ export function registerScanCommands(
           }
         }
       } catch {
-        // If DB query fails, continue with just workspace root
+        // If query fails, continue with just workspace root
       }
 
       // Browse option
@@ -131,7 +113,7 @@ export function registerScanCommands(
       // Open findings panel immediately with scanning state
       findingsPanelManager.showScanning('pending', targetPath);
 
-      await executeScan(targetPath, scanner, db, projectId, findingsPanelManager, sidebarWebviewProvider, scanTreeProvider);
+      await executeScan(targetPath, scanner, findingsService, findingsPanelManager, sidebarWebviewProvider, scanTreeProvider);
     }),
 
     vscode.commands.registerCommand('ashWorkbench.cancelScan', async () => {
@@ -152,7 +134,7 @@ export function registerScanCommands(
       // Open findings panel immediately
       findingsPanelManager.showScanning('pending', targetPath);
 
-      await executeScan(targetPath, scanner, db, projectId, findingsPanelManager, sidebarWebviewProvider, scanTreeProvider);
+      await executeScan(targetPath, scanner, findingsService, findingsPanelManager, sidebarWebviewProvider, scanTreeProvider);
     }),
   );
 }
