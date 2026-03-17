@@ -11,6 +11,16 @@ export class FindingsService {
     private readonly projectId: string,
   ) {}
 
+  async getFindingDetail(findingId: string): Promise<FindingRow | null> {
+    const finding = await this.db.finding.findUnique({
+      where: { id: findingId },
+    });
+    if (!finding) {
+      return null;
+    }
+    return mapFindingToRow(finding);
+  }
+
   async getFindings(scanId: string, filters?: FilterState): Promise<FindingRow[]> {
     const where: Record<string, unknown> = { scanId };
 
