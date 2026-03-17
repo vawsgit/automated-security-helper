@@ -80,4 +80,86 @@ describe('FindingsService', () => {
       assert.equal(detail, null);
     });
   });
+
+  describe('setDisposition', () => {
+    it('updates and returns the correct disposition', async () => {
+      const db = DatabaseService.client;
+      const finding = await db.finding.create({
+        data: {
+          scanId,
+          projectId,
+          scanTargetId,
+          ruleId: 'B102',
+          scanner: 'bandit',
+          severity: 'MEDIUM',
+          file: '/src/config.py',
+          startLine: 10,
+          title: 'Exec used',
+          description: 'Use of exec detected',
+        },
+      });
+
+      const updated = await service.setDisposition(finding.id, 'FIX');
+
+      assert.equal(updated.id, finding.id);
+      assert.equal(updated.disposition, 'FIX');
+    });
+
+    it('throws for a non-existent finding ID', async () => {
+      await assert.rejects(
+        () => service.setDisposition('non-existent-id-99999', 'SUPPRESS'),
+      );
+    });
+  });
+
+  describe('setNotes', () => {
+    it('updates and returns the correct notes', async () => {
+      const db = DatabaseService.client;
+      const finding = await db.finding.create({
+        data: {
+          scanId,
+          projectId,
+          scanTargetId,
+          ruleId: 'B103',
+          scanner: 'bandit',
+          severity: 'LOW',
+          file: '/src/util.py',
+          startLine: 5,
+          title: 'Assert used',
+          description: 'Use of assert detected',
+        },
+      });
+
+      const updated = await service.setNotes(finding.id, 'Accepted risk per security review');
+
+      assert.equal(updated.id, finding.id);
+      assert.equal(updated.notes, 'Accepted risk per security review');
+    });
+  });
+
+  describe('notes mapping from database', () => {
+    it('maps notes from DB through getFindingDetail', async () => {
+      const db = DatabaseService.client;
+      const finding = await db.finding.create({
+        data: {
+          scanId,
+          projectId,
+          scanTargetId,
+          ruleId: 'B104',
+          scanner: 'bandit',
+          severity: 'INFO',
+          file: '/src/readme.py',
+          startLine: 1,
+          title: 'Info finding',
+          description: 'Informational',
+          notes: 'Pre-existing note from DB',
+        },
+      });
+
+      const detail = await service.getFindingDetail(finding.id);
+
+      assert.ok(detail);
+      assert.equal(detail.notes, 'Pre-existing note from DB');
+    });
+  });
 });

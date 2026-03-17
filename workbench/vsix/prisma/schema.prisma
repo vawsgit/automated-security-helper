@@ -71,6 +71,7 @@ model Finding {
   title        String
   description  String
   snippet      String?
+  notes        String?
   disposition  Disposition @default(PENDING)
 
   @@index([scanTargetId, ruleId, file])

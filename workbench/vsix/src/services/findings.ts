@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, Disposition as PrismaDisposition } from '@prisma/client';
 import type { FindingRow, ScanSummary, ScanTarget, DispositionSummary, FilterState, Severity, Disposition } from '../models/types';
 import { mapFindingToRow, mapScanToSummary, mapScanTargetToView } from '../models/mappers';
 
@@ -10,6 +10,22 @@ export class FindingsService {
     private readonly db: PrismaClient,
     private readonly projectId: string,
   ) {}
+
+  async setDisposition(findingId: string, disposition: Disposition): Promise<FindingRow> {
+    const updated = await this.db.finding.update({
+      where: { id: findingId },
+      data: { disposition: disposition as PrismaDisposition },
+    });
+    return mapFindingToRow(updated);
+  }
+
+  async setNotes(findingId: string, notes: string): Promise<FindingRow> {
+    const updated = await this.db.finding.update({
+      where: { id: findingId },
+      data: { notes },
+    });
+    return mapFindingToRow(updated);
+  }
 
   async getFindingDetail(findingId: string): Promise<FindingRow | null> {
     const finding = await this.db.finding.findUnique({

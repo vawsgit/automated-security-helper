@@ -59,7 +59,7 @@ export function mapFindingToRow(finding: Finding): FindingRow {
     startLine: finding.startLine,
     endLine: finding.endLine ?? finding.startLine,
     codeSnippet: finding.snippet ?? '',
-    notes: '',
+    notes: finding.notes ?? '',
     firstDetectedAt: new Date().toISOString(),
     aiAnalysis: null,
     suppression: null,

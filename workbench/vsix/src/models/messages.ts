@@ -9,6 +9,7 @@ export type ExtToWebviewMessage =
   | { type: 'findingsUpdate'; payload: { scanId: string; findings: FindingRow[] } }
   | { type: 'findingDetail'; payload: FindingRow }
   | { type: 'dispositionUpdated'; payload: { findingId: string; disposition: Disposition } }
+  | { type: 'notesUpdated'; payload: { findingId: string; notes: string } }
   | { type: 'scanStarted'; payload: { scanId: string; targetPath: string } }
   | { type: 'scanProgress'; payload: { scanId: string; elapsed: number; status: string } };
 
@@ -18,6 +19,7 @@ export type WebviewToExtMessage =
   | { type: 'selectScan'; payload: { scanId: string } }
   | { type: 'selectFinding'; payload: { findingId: string } }
   | { type: 'setDisposition'; payload: { findingId: string; disposition: Disposition } }
+  | { type: 'setNotes'; payload: { findingId: string; notes: string } }
   | { type: 'navigateToCode'; payload: { filePath: string; startLine: number } }
   | { type: 'startScan'; payload: { targetPath: string } }
   | { type: 'cancelScan'; payload: { scanId: string } }
