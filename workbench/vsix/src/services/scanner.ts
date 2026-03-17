@@ -159,7 +159,7 @@ export class ScannerService {
         '--source-dir', params.targetPath,
         '--output-dir', tempDir,
         '--output-formats', 'sarif',
-        '--color', 'false',
+        '--no-color',
         '--progress',
       ];
       if (config.ashMode === 'container') {
@@ -242,7 +242,7 @@ export class ScannerService {
         '--source-dir', targetPath,
         '--output-dir', tempDir,
         '--output-formats', 'sarif',
-        '--color', 'false',
+        '--no-color',
         '--progress',
       ];
       if (config.ashMode === 'container') {
