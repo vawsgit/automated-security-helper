@@ -65,6 +65,19 @@ export class DatabaseService {
     return DatabaseService.prismaInstance;
   }
 
+  static async getSchemaVersion(): Promise<string> {
+    if (!DatabaseService.pgliteInstance) {
+      return 'none';
+    }
+    const result = await DatabaseService.pgliteInstance.query<{ name: string }>(
+      'SELECT name FROM _ash_migrations ORDER BY id DESC LIMIT 1',
+    );
+    if (result.rows.length === 0) {
+      return 'none';
+    }
+    return result.rows[0].name;
+  }
+
   static async close(): Promise<void> {
     try {
       if (DatabaseService.prismaInstance) {

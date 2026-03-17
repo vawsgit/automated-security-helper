@@ -544,4 +544,28 @@ describe('DatabaseService', () => {
       assert.equal(scan2Findings.length, 3);
     });
   });
+
+  // ─── getSchemaVersion ───
+
+  describe('getSchemaVersion', () => {
+    before(async () => {
+      await DatabaseService.initialize();
+    });
+
+    after(async () => {
+      await DatabaseService.close();
+    });
+
+    it('returns latest migration name after initialization', async () => {
+      const version = await DatabaseService.getSchemaVersion();
+      assert.notEqual(version, 'none');
+      assert.ok(version.length > 0);
+    });
+
+    it('returns a string matching a migration directory name pattern', async () => {
+      const version = await DatabaseService.getSchemaVersion();
+      // Migration names follow the pattern: YYYYMMDDHHMMSS_description
+      assert.ok(/^\d+/.test(version), `Expected migration name starting with digits, got: ${version}`);
+    });
+  });
 });

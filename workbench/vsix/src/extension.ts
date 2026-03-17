@@ -8,6 +8,7 @@ import { SidebarWebviewProvider } from './providers/sidebarWebviewProvider';
 import { FindingsPanelManager } from './providers/findingsPanelManager';
 import { SinkPanelManager } from './providers/sinkPanelManager';
 import { FindingsService } from './services/findings';
+import { AdminService } from './services/admin';
 
 export async function activate(context: vscode.ExtensionContext) {
   console.log('[ASH] Activating ASH Workbench extension');
@@ -21,14 +22,37 @@ export async function activate(context: vscode.ExtensionContext) {
     return;
   }
 
-  // FR-001: Initialize database
+  // FR-001: Initialize database with migration error handling (FR-011, FR-012)
   let db;
   try {
     db = await DatabaseService.initialize(context.globalStorageUri.fsPath);
   } catch (err) {
     console.error('[ASH] Database initialization failed:', err);
-    vscode.window.showErrorMessage('ASH Workbench: Failed to initialize database.');
-    return;
+    const errMsg = err instanceof Error ? err.message : String(err);
+    const choice = await vscode.window.showErrorMessage(
+      `ASH Workbench: Database initialization failed. ${errMsg}`,
+      'Retry',
+      'Reset Application',
+    );
+    if (choice === 'Retry') {
+      try {
+        db = await DatabaseService.initialize(context.globalStorageUri.fsPath);
+      } catch (retryErr) {
+        console.error('[ASH] Database retry failed:', retryErr);
+        vscode.window.showErrorMessage('ASH Workbench: Database initialization failed after retry.');
+        return;
+      }
+    } else if (choice === 'Reset Application') {
+      try {
+        await AdminService.resetApplication(context.globalStorageUri.fsPath);
+      } catch {
+        // Best-effort reset
+      }
+      await vscode.commands.executeCommand('workbench.action.reloadWindow');
+      return;
+    } else {
+      return;
+    }
   }
 
   // FR-002 / FR-003 / FR-004: Ensure project record
@@ -80,6 +104,11 @@ export async function activate(context: vscode.ExtensionContext) {
   findingsPanelManager.setFindingsService(findingsService);
   findingsPanelManager.setScanTreeProvider(scanTreeProvider);
 
+  // Admin dependencies for application info and reset
+  const extensionVersion = context.extension?.packageJSON?.version ?? '0.0.0';
+  const adminDeps = { db, extensionVersion, storagePath: context.globalStorageUri.fsPath };
+  findingsPanelManager.setAdminDeps(adminDeps);
+
   // Kitchen Sink panel manager (dev only)
   const sinkPanelManager = new SinkPanelManager(context.extensionUri);
   if (context.extensionMode === vscode.ExtensionMode.Development) {
@@ -97,6 +126,7 @@ export async function activate(context: vscode.ExtensionContext) {
   sidebarProvider.setScanner(scanner);
   sidebarProvider.setScanTreeProvider(scanTreeProvider);
   sidebarProvider.setFindingsService(findingsService);
+  sidebarProvider.setAdminDeps(adminDeps);
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(SidebarWebviewProvider.viewType, sidebarProvider),
   );
@@ -137,6 +167,31 @@ export async function activate(context: vscode.ExtensionContext) {
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         vscode.window.showErrorMessage(`ASH: Failed to delete scan: ${msg}`);
+      }
+    }),
+  );
+
+  // Reset application command — deletes all data and reinitializes
+  context.subscriptions.push(
+    vscode.commands.registerCommand('ashWorkbench.resetApplication', async () => {
+      if (scanner.getCurrentScanId()) {
+        vscode.window.showWarningMessage('ASH: Cannot reset while a scan is running. Cancel the scan first.');
+        return;
+      }
+      const confirm = await vscode.window.showWarningMessage(
+        'This will permanently delete all scans, findings, and triage data. This cannot be undone.',
+        { modal: true },
+        'Reset',
+      );
+      if (confirm !== 'Reset') {
+        return;
+      }
+      try {
+        await AdminService.resetApplication(context.globalStorageUri.fsPath);
+        await vscode.commands.executeCommand('workbench.action.reloadWindow');
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        vscode.window.showErrorMessage(`ASH: Reset failed: ${msg}`);
       }
     }),
   );

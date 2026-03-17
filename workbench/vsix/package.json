@@ -60,6 +60,10 @@
       {
         "command": "ashWorkbench.deleteScan",
         "title": "ASH: Delete Scan"
+      },
+      {
+        "command": "ashWorkbench.resetApplication",
+        "title": "ASH: Reset Application"
       }
     ],
     "menus": {
@@ -105,6 +109,36 @@
           "default": 600,
           "minimum": 30,
           "description": "Scan timeout in seconds"
+        },
+        "ashWorkbench.defaultSeverityThreshold": {
+          "type": "string",
+          "enum": [
+            "CRITICAL",
+            "HIGH",
+            "MEDIUM",
+            "LOW",
+            "INFO"
+          ],
+          "default": "LOW",
+          "description": "Default severity threshold for filtering scan results"
+        },
+        "ashWorkbench.llm.provider": {
+          "type": "string",
+          "enum": [
+            "bedrock"
+          ],
+          "default": "bedrock",
+          "description": "LLM provider for AI-assisted analysis"
+        },
+        "ashWorkbench.llm.region": {
+          "type": "string",
+          "default": "us-east-1",
+          "description": "AWS region for LLM provider"
+        },
+        "ashWorkbench.llm.modelId": {
+          "type": "string",
+          "default": "anthropic.claude-sonnet-4-20250514",
+          "description": "LLM model identifier"
         }
       }
     }

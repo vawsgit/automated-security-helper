@@ -6,6 +6,8 @@ import type { FindingsService } from '../services/findings';
 import type { FindingsPanelManager } from './findingsPanelManager';
 import type { SinkPanelManager } from './sinkPanelManager';
 import type { ScanTreeProvider } from './scanTreeProvider';
+import type { PrismaClient } from '@prisma/client';
+import { AdminService } from '../services/admin';
 
 export class SidebarWebviewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'ashWorkbench.mainView';
@@ -15,10 +17,15 @@ export class SidebarWebviewProvider implements vscode.WebviewViewProvider {
   private scanner?: ScannerService;
   private scanTreeProvider?: ScanTreeProvider;
   private findingsService?: FindingsService;
+  private adminDeps?: { db: PrismaClient; extensionVersion: string; storagePath: string };
 
   constructor(
     private readonly extensionUri: vscode.Uri,
   ) {}
+
+  setAdminDeps(deps: { db: PrismaClient; extensionVersion: string; storagePath: string }): void {
+    this.adminDeps = deps;
+  }
 
   setFindingsPanelManager(manager: FindingsPanelManager): void {
     this.findingsPanelManager = manager;
@@ -102,6 +109,12 @@ export class SidebarWebviewProvider implements vscode.WebviewViewProvider {
       case 'deleteScan':
         this.handleDeleteScan(message.payload.scanId);
         break;
+      case 'resetApplication':
+        this.handleResetApplication();
+        break;
+      case 'requestApplicationInfo':
+        this.handleRequestApplicationInfo();
+        break;
     }
   }
 
@@ -114,6 +127,46 @@ export class SidebarWebviewProvider implements vscode.WebviewViewProvider {
       } catch (err) {
         console.error('[ASH] Failed to delete scan:', err);
       }
+    }
+  }
+
+  private async handleResetApplication(): Promise<void> {
+    if (!this.adminDeps) {
+      return;
+    }
+    if (this.scanner?.getCurrentScanId()) {
+      vscode.window.showWarningMessage('ASH: Cannot reset while a scan is running. Cancel the scan first.');
+      return;
+    }
+    const confirm = await vscode.window.showWarningMessage(
+      'This will permanently delete all scans, findings, and triage data. This cannot be undone.',
+      { modal: true },
+      'Reset',
+    );
+    if (confirm !== 'Reset') {
+      return;
+    }
+    try {
+      await AdminService.resetApplication(this.adminDeps.storagePath);
+      await vscode.commands.executeCommand('workbench.action.reloadWindow');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      vscode.window.showErrorMessage(`ASH: Reset failed: ${msg}`);
+    }
+  }
+
+  private async handleRequestApplicationInfo(): Promise<void> {
+    if (!this.adminDeps) {
+      return;
+    }
+    try {
+      const info = await AdminService.getApplicationInfo(
+        this.adminDeps.db,
+        this.adminDeps.extensionVersion,
+      );
+      this.view?.webview.postMessage({ type: 'applicationInfo', payload: info });
+    } catch (err) {
+      console.error('[ASH] Failed to get application info:', err);
     }
   }
 

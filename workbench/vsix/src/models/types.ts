@@ -100,3 +100,13 @@ export interface FilterState {
   disposition?: Disposition[];
   filePattern?: string;
 }
+
+export interface ApplicationInfo {
+  extensionVersion: string;
+  schemaVersion: string;
+  stats: {
+    projectCount: number;
+    scanCount: number;
+    findingCount: number;
+  };
+}
