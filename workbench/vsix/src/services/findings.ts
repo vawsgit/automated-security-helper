@@ -48,6 +48,13 @@ export class FindingsService {
     return mapFindingToRow(finding);
   }
 
+  async getFindingsByScanTarget(scanTargetId: string): Promise<FindingRow[]> {
+    const findings = await this.db.finding.findMany({
+      where: { scanTargetId },
+    });
+    return findings.map(mapFindingToRow);
+  }
+
   async getFindings(scanId: string, filters?: FilterState): Promise<FindingRow[]> {
     const where: Record<string, unknown> = { scanId };
 

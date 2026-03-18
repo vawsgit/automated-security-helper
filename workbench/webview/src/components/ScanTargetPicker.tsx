@@ -114,6 +114,7 @@ export function ScanTargetPicker({
                 onKeyDown={e => { if (e.key === 'Enter') handleCustomSubmit(); }}
               />
               <Button
+                variant="outline"
                 size="sm"
                 className="shrink-0 h-8"
                 disabled={!customPath.trim()}

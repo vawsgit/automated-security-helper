@@ -38,9 +38,8 @@ export function DashboardView({
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <AppBreadcrumb segments={[{ label: 'Dashboard' }]} />
-          <p className="text-xs opacity-70">{project.name} &middot; {project.rootPath}</p>
         </div>
-        <Button size="sm" onClick={() => setPickerOpen(true)}>
+        <Button variant="outline" size="sm" onClick={() => setPickerOpen(true)}>
           <Play className="h-3.5 w-3.5 mr-1.5" />
           Run Scan
         </Button>
@@ -116,7 +115,7 @@ export function DashboardView({
 
       {/* Quick Actions */}
       <div className="flex gap-3">
-        <Button size="sm" onClick={() => onNavigate('findingList')}>
+        <Button variant="outline" size="sm" onClick={() => onNavigate('findingList')}>
           <List className="h-3.5 w-3.5 mr-1.5" />
           All Findings
         </Button>

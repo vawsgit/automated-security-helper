@@ -19,6 +19,7 @@ export type ExtToWebviewMessage =
 export type WebviewToExtMessage =
   | { type: 'requestState' }
   | { type: 'selectScan'; payload: { scanId: string } }
+  | { type: 'selectScanTarget'; payload: { scanTargetId: string } }
   | { type: 'selectFinding'; payload: { findingId: string } }
   | { type: 'setDisposition'; payload: { findingId: string; disposition: Disposition } }
   | { type: 'setNotes'; payload: { findingId: string; notes: string } }
@@ -29,5 +30,7 @@ export type WebviewToExtMessage =
   | { type: 'openSink' }
   | { type: 'applyFilters'; payload: { scanId: string; filters: FilterState } }
   | { type: 'deleteScan'; payload: { scanId: string } }
+  | { type: 'openDashboard' }
+  | { type: 'openSettings' }
   | { type: 'requestApplicationInfo' }
   | { type: 'resetApplication' };

@@ -3,7 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { severityColor, dispositionColor } from '@/lib/theme-colors';
 import { postMessage } from '../hooks/useVSCodeAPI';
-import { Play, List, FolderOpen } from 'lucide-react';
+import { Play, List, FolderOpen, LayoutDashboard, Settings } from 'lucide-react';
 import type { ScanSummary, ScanTarget, DispositionSummary, Severity, Disposition } from '../types/types';
 
 interface SidebarDashboardProps {
@@ -20,12 +20,29 @@ export function SidebarDashboard({ scans, summary, scanTargets }: SidebarDashboa
 
   return (
     <div className="p-3 flex flex-col gap-3">
-      <div>
-        <h2 className="text-sm font-semibold mb-1">ASH Workbench</h2>
-        <p className="text-xs opacity-70">my-web-app</p>
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold">ASH Workbench</h2>
+        <button
+          className="opacity-50 hover:opacity-100 transition-opacity"
+          onClick={() => postMessage({ type: 'openSettings' })}
+          title="ASH Workbench Settings"
+        >
+          <Settings className="h-3.5 w-3.5" />
+        </button>
       </div>
 
       <Button
+        variant="outline"
+        className="w-full"
+        size="sm"
+        onClick={() => postMessage({ type: 'openDashboard' })}
+      >
+        <LayoutDashboard className="h-3.5 w-3.5 mr-1.5" />
+        View Dashboard
+      </Button>
+
+      <Button
+        variant="outline"
         className="w-full"
         size="sm"
         onClick={() => postMessage({ type: 'startScan', payload: { targetPath: '/home/user/projects/my-web-app' } })}
@@ -102,9 +119,23 @@ export function SidebarDashboard({ scans, summary, scanTargets }: SidebarDashboa
 
       <Separator />
 
+      {/* View Findings button - above severity breakdown */}
+      {latestScan && (
+        <Button
+          variant="secondary"
+          className="w-full"
+          size="sm"
+          onClick={() => postMessage({ type: 'openFindings', payload: { scanId: latestScan.id } })}
+        >
+          <List className="h-3.5 w-3.5 mr-1.5" />
+          View Findings ({summary.total})
+        </Button>
+      )}
+
       {/* Severity breakdown */}
       {latestScan && (
         <>
+          <Separator />
           <div>
             <h3 className="text-xs font-semibold mb-2 uppercase tracking-wide opacity-70">Severity Breakdown</h3>
             <div className="flex flex-wrap gap-1.5">
@@ -117,20 +148,7 @@ export function SidebarDashboard({ scans, summary, scanTargets }: SidebarDashboa
               ))}
             </div>
           </div>
-          <Separator />
         </>
-      )}
-
-      {latestScan && (
-        <Button
-          variant="secondary"
-          className="w-full"
-          size="sm"
-          onClick={() => postMessage({ type: 'openFindings', payload: { scanId: latestScan.id } })}
-        >
-          <List className="h-3.5 w-3.5 mr-1.5" />
-          View Findings ({summary.total})
-        </Button>
       )}
     </div>
   );

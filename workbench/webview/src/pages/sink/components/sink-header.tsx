@@ -1,3 +1,4 @@
+import { AppBreadcrumb } from '@/components/AppBreadcrumb';
 import { Separator } from '@/components/ui/separator';
 
 interface SinkHeaderProps {
@@ -8,7 +9,7 @@ interface SinkHeaderProps {
 export function SinkHeader({ searchFilter, onSearchChange }: SinkHeaderProps) {
   return (
     <header className="sticky top-0 z-10 flex h-14 items-center border-b bg-[var(--background)] px-4">
-      <h1 className="text-sm font-semibold whitespace-nowrap">Kitchen Sink</h1>
+      <AppBreadcrumb segments={[{ label: 'Kitchen Sink' }]} />
       <Separator orientation="vertical" className="mx-3 !h-4" />
       <input
         type="text"

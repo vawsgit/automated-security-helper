@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { AppBreadcrumb } from './AppBreadcrumb';
+import { postMessage } from '../hooks/useVSCodeAPI';
 import { Play, LayoutDashboard, Settings } from 'lucide-react';
 
 interface EmptyStateViewProps {
@@ -33,7 +34,7 @@ export function EmptyStateView({ variant, errorMessage, onNavigateDashboard }: E
                   <li>2. Open a project folder in VS Code</li>
                   <li>3. Click "Run First Scan" below</li>
                 </ol>
-                <Button>
+                <Button variant="outline">
                   <Play className="h-3.5 w-3.5 mr-1.5" />
                   Run First Scan
                 </Button>
@@ -60,11 +61,11 @@ export function EmptyStateView({ variant, errorMessage, onNavigateDashboard }: E
                   {errorMessage ?? 'An unexpected error occurred during the scan.'}
                 </p>
                 <div className="flex gap-2">
-                  <Button>
+                  <Button variant="outline">
                     <Play className="h-3.5 w-3.5 mr-1.5" />
                     Try Again
                   </Button>
-                  <Button variant="outline">
+                  <Button variant="outline" onClick={() => postMessage({ type: 'openSettings' })}>
                     <Settings className="h-3.5 w-3.5 mr-1.5" />
                     Check Settings
                   </Button>

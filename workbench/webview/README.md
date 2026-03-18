@@ -100,7 +100,7 @@ Navigation uses a **history stack** (`viewHistory: ViewState[]`). Every navigati
 | `AiAnalysisPanel` | `AiAnalysisPanel.tsx` | Accordion: explanation, risk assessment, suggested fix, references |
 | `SuppressionPanel` | `SuppressionPanel.tsx` | Suppression justification, YAML entry, expiry |
 | `FindingNavigation` | `FindingNavigation.tsx` | Prev/Next buttons for stepping through findings |
-| `DevNav` | `DevNav.tsx` | Development-only navigation bar (will be removed for production) |
+| `DevNav` | `DevNav.tsx` | Legacy dev navigation bar -- replaced by `AppBreadcrumb` in all views |
 
 ## ShadCN Component System
 
@@ -245,6 +245,38 @@ Domain-specific colors (severity and disposition) are centralized in `src/lib/th
 
 `@custom-variant dark (&:is(.vscode-dark *))` remaps Tailwind's `dark:` prefix to VS Code's `.vscode-dark` body class.
 
+## Style Conventions
+
+### Tinted Badge Pattern
+
+Severity and disposition badges use a tinted background with matching text, defined in `lib/theme-colors.ts`:
+
+```
+bg-{color}-500/15 text-{color}-700 dark:text-{color}-400
+```
+
+This gives a subtle colored background (15% opacity) with readable text in both light and dark themes. Badges use `variant="outline"` from ShadCN with the tinted classes applied via `className`.
+
+### Button Treatment
+
+All buttons use `variant="outline"` -- never `variant="default"` (which renders with a solid blue/primary background). This gives a subtle, industrial look consistent with VS Code's native UI. Active or selected states (e.g., the current triage disposition) use `variant="secondary"`.
+
+### Neutral Checkboxes
+
+Checkboxes use `data-[state=checked]:bg-foreground` instead of the ShadCN default blue, keeping them neutral across themes.
+
+### Navigation (AppBreadcrumb)
+
+Every view renders an `AppBreadcrumb` at the top with clickable segments. The last segment is the current page (non-clickable). Each view builds its own breadcrumb array -- there is no centralized route config.
+
+### Data Loading on Navigation
+
+When the user clicks a scan target or scan, the app must both:
+1. `dispatch()` locally to update view state
+2. `postMessage()` to the extension host to load data from the database
+
+Missing either step causes empty views or stale state. See `selectScanTarget()` and `selectScan()` helpers in `App.tsx`.
+
 ## Integration Points
 
 - **Extension host** -- communicates via `postMessage` / `onDidReceiveMessage`. Message types defined in `src/types/messages.ts`.
@@ -256,6 +288,4 @@ Domain-specific colors (severity and disposition) are centralized in `src/lib/th
 
 ## Related
 
-- See [CLAUDE.md](./CLAUDE.md) for conventions.
-- Developer docs: `docs/docs/developer-docs/webview/README.md` (dual-context rendering, theme integration, extending components).
-- As-built reference: `docs/docs/working/webview/app-mock/ux-as-built.md` (complete mock app UX architecture and gotchas).
+- See [CLAUDE.md](./CLAUDE.md) for conventions and grab-and-go facts.

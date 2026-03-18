@@ -1,7 +1,6 @@
 import { useReducer, useCallback, useEffect, useMemo } from 'react';
 import { postMessage, useMessages } from './hooks/useVSCodeAPI';
 import { SidebarDashboard } from './components/SidebarDashboard';
-import { DevNav } from './components/DevNav';
 import { DashboardView } from './components/DashboardView';
 import { FindingsView } from './components/FindingsView';
 import { FindingDetailView } from './components/FindingDetailView';
@@ -222,6 +221,16 @@ function EditorPanel({ state, dispatch }: { state: AppState; dispatch: React.Dis
   const navigateFindings = () => dispatch({ type: 'NAVIGATE', view: 'findingList' });
   const navigateScans = () => dispatch({ type: 'NAVIGATE', view: 'scanHistory' });
 
+  const selectScanTarget = (scanTargetId: string) => {
+    dispatch({ type: 'SELECT_SCAN_TARGET', scanTargetId });
+    postMessage({ type: 'selectScanTarget', payload: { scanTargetId } });
+  };
+
+  const selectScan = (scanId: string) => {
+    dispatch({ type: 'SELECT_SCAN', scanId });
+    postMessage({ type: 'selectScan', payload: { scanId } });
+  };
+
   // Derive filtered data based on selected scan target
   const selectedTarget = state.scanTargets.find(t => t.id === state.selectedScanTargetId);
 
@@ -251,7 +260,7 @@ function EditorPanel({ state, dispatch }: { state: AppState; dispatch: React.Dis
             summary={state.summary}
             onNavigate={navigate}
             onStartScan={(targetPath) => dispatch({ type: 'START_SCAN', targetPath })}
-            onSelectScanTarget={(scanTargetId) => dispatch({ type: 'SELECT_SCAN_TARGET', scanTargetId })}
+            onSelectScanTarget={selectScanTarget}
           />
         );
       case 'findingList':
@@ -298,7 +307,7 @@ function EditorPanel({ state, dispatch }: { state: AppState; dispatch: React.Dis
             onSelectScan={(scanId) => dispatch({ type: 'VIEW_SCAN_DETAIL', scanId })}
             onNavigateDashboard={navigateDashboard}
             onNavigate={navigate}
-            onSelectScanTarget={(id) => dispatch({ type: 'SELECT_SCAN_TARGET', scanTargetId: id })}
+            onSelectScanTarget={selectScanTarget}
             onClearTarget={() => dispatch({ type: 'CLEAR_SCAN_TARGET' })}
             onStartScan={(targetPath) => dispatch({ type: 'START_SCAN', targetPath })}
           />
@@ -315,7 +324,7 @@ function EditorPanel({ state, dispatch }: { state: AppState; dispatch: React.Dis
             findings={state.findings.filter(f => f.scanTargetId === scan.scanTargetId)}
             onNavigateDashboard={navigateDashboard}
             onNavigateScans={navigateScans}
-            onViewFindings={() => dispatch({ type: 'SELECT_SCAN', scanId: scan.id })}
+            onViewFindings={() => selectScan(scan.id)}
           />
         );
       }
@@ -346,7 +355,6 @@ function EditorPanel({ state, dispatch }: { state: AppState; dispatch: React.Dis
 
   return (
     <div className="flex flex-col h-screen">
-      <DevNav currentView={state.view} onNavigate={navigate} />
       <div className="flex-1 overflow-auto">
         {renderView()}
       </div>

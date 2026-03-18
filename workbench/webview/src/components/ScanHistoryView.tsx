@@ -62,7 +62,7 @@ export function ScanHistoryView({
             )}
           </div>
         </div>
-        <Button size="sm" onClick={() => setPickerOpen(true)}>
+        <Button variant="outline" size="sm" onClick={() => setPickerOpen(true)}>
           <Play className="h-3.5 w-3.5 mr-1.5" />
           Run New Scan
         </Button>
@@ -81,7 +81,7 @@ export function ScanHistoryView({
         <div className="flex flex-wrap gap-1.5">
           <span className="text-xs opacity-70 mr-1 self-center">Target:</span>
           <Button
-            variant="default"
+            variant="secondary"
             size="sm"
             className="text-xs h-6 px-2"
           >

@@ -148,7 +148,7 @@ export function ScanDetailView({
 
       {/* Actions */}
       {scan.findingCount > 0 && (
-        <Button size="sm" onClick={onViewFindings}>
+        <Button variant="outline" size="sm" onClick={onViewFindings}>
           <List className="h-4 w-4 mr-1.5" />
           View {scanFindings.length} Findings
         </Button>

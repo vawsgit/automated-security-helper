@@ -10,6 +10,7 @@ import { AdminService } from '../services/admin';
 
 export class FindingsPanelManager {
   private panel: vscode.WebviewPanel | undefined;
+  private currentScanId = '';
   private scanner: ScannerService | undefined;
   private findingsService: FindingsService | undefined;
   private scanTreeProvider: ScanTreeProvider | undefined;
@@ -35,20 +36,13 @@ export class FindingsPanelManager {
     this.scanTreeProvider = provider;
   }
 
-  public showFindings(scanId: string, targetPath?: string): void {
+  /**
+   * Returns true if a new panel was created, false if existing panel was revealed.
+   */
+  private ensurePanel(): boolean {
     if (this.panel) {
       this.panel.reveal(vscode.ViewColumn.One);
-      this.panel.webview.postMessage({
-        type: 'init',
-        payload: { context: 'editorPanel', scanId },
-      });
-      if (targetPath) {
-        this.panel.webview.postMessage({
-          type: 'scanStarted',
-          payload: { scanId, targetPath },
-        });
-      }
-      return;
+      return false;
     }
 
     this.panel = vscode.window.createWebviewPanel(
@@ -65,14 +59,50 @@ export class FindingsPanelManager {
     this.panel.webview.html = getWebviewHtml(this.panel.webview, this.extensionUri);
 
     this.panel.webview.onDidReceiveMessage((message: WebviewToExtMessage) => {
-      this.handleMessage(message, scanId);
+      this.handleMessage(message);
     });
 
     this.panel.onDidDispose(() => {
       this.panel = undefined;
     });
 
-    if (targetPath) {
+    return true;
+  }
+
+  public showDashboard(): void {
+    this.currentScanId = '';
+    const isNew = this.ensurePanel();
+    if (!isNew) {
+      this.panel!.webview.postMessage({
+        type: 'init',
+        payload: { context: 'editorPanel', scanId: '' },
+      });
+      this.postStateUpdate();
+    }
+  }
+
+  public showFindings(scanId: string, targetPath?: string): void {
+    this.currentScanId = scanId;
+    const isNew = this.ensurePanel();
+
+    if (!isNew) {
+      this.panel!.webview.postMessage({
+        type: 'init',
+        payload: { context: 'editorPanel', scanId },
+      });
+      if (targetPath) {
+        this.panel!.webview.postMessage({
+          type: 'scanStarted',
+          payload: { scanId, targetPath },
+        });
+      }
+      if (scanId && this.findingsService) {
+        this.findingsService.getFindings(scanId).then(findings => {
+          this.postFindingsUpdate(scanId, findings);
+        });
+      }
+      this.postStateUpdate();
+    } else if (targetPath) {
       setTimeout(() => {
         this.panel?.webview.postMessage({
           type: 'scanStarted',
@@ -110,58 +140,58 @@ export class FindingsPanelManager {
   }
 
   public showScanning(scanId: string, targetPath: string): void {
-    if (this.panel) {
-      this.panel.reveal(vscode.ViewColumn.One);
-      this.panel.webview.postMessage({
+    this.currentScanId = scanId;
+    const isNew = this.ensurePanel();
+    if (!isNew) {
+      this.panel!.webview.postMessage({
         type: 'scanStarted',
         payload: { scanId, targetPath },
       });
-      return;
+    } else {
+      setTimeout(() => {
+        this.panel?.webview.postMessage({
+          type: 'scanStarted',
+          payload: { scanId, targetPath },
+        });
+      }, 500);
     }
-
-    this.panel = vscode.window.createWebviewPanel(
-      'ashWorkbench.findingsPanel',
-      'ASH Findings',
-      vscode.ViewColumn.One,
-      {
-        enableScripts: true,
-        localResourceRoots: [vscode.Uri.joinPath(this.extensionUri, 'webview-dist')],
-        retainContextWhenHidden: true,
-      }
-    );
-
-    this.panel.webview.html = getWebviewHtml(this.panel.webview, this.extensionUri);
-
-    this.panel.webview.onDidReceiveMessage((message: WebviewToExtMessage) => {
-      this.handleMessage(message, scanId);
-    });
-
-    this.panel.onDidDispose(() => {
-      this.panel = undefined;
-    });
-
-    setTimeout(() => {
-      this.panel?.webview.postMessage({
-        type: 'scanStarted',
-        payload: { scanId, targetPath },
-      });
-    }, 500);
   }
 
-  private async handleMessage(message: WebviewToExtMessage, currentScanId: string): Promise<void> {
+  private async handleMessage(message: WebviewToExtMessage): Promise<void> {
     switch (message.type) {
       case 'requestState': {
         this.panel?.webview.postMessage({
           type: 'init',
-          payload: { context: 'editorPanel', scanId: currentScanId },
+          payload: { context: 'editorPanel', scanId: this.currentScanId },
         });
         if (this.findingsService) {
-          const findings = await this.findingsService.getFindings(currentScanId);
+          if (this.currentScanId) {
+            const findings = await this.findingsService.getFindings(this.currentScanId);
+            this.panel?.webview.postMessage({
+              type: 'findingsUpdate',
+              payload: { scanId: this.currentScanId, findings },
+            });
+          }
+          await this.postStateUpdate();
+        }
+        break;
+      }
+      case 'selectScan': {
+        if (this.findingsService) {
+          const scanId = message.payload.scanId;
+          this.currentScanId = scanId;
+          const findings = await this.findingsService.getFindings(scanId);
+          this.postFindingsUpdate(scanId, findings);
+        }
+        break;
+      }
+      case 'selectScanTarget': {
+        if (this.findingsService) {
+          const findings = await this.findingsService.getFindingsByScanTarget(message.payload.scanTargetId);
           this.panel?.webview.postMessage({
             type: 'findingsUpdate',
-            payload: { scanId: currentScanId, findings },
+            payload: { scanId: '', findings },
           });
-          await this.postStateUpdate();
         }
         break;
       }
@@ -221,6 +251,7 @@ export class FindingsPanelManager {
               const scanId = this.scanner?.getCurrentScanId() ?? '';
               this.postProgress(scanId, progress.elapsed, progress.statusText);
             });
+            this.currentScanId = result.scanId;
             if (this.findingsService) {
               const findings = await this.findingsService.getFindings(result.scanId);
               this.postFindingsUpdate(result.scanId, findings);
@@ -300,6 +331,10 @@ export class FindingsPanelManager {
             console.error('[ASH] Failed to get application info:', err);
           }
         }
+        break;
+      }
+      case 'openSettings': {
+        vscode.commands.executeCommand('workbench.action.openSettings', 'ashWorkbench');
         break;
       }
       case 'navigateToCode': {

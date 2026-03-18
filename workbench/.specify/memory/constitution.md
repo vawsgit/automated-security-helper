@@ -1,24 +1,25 @@
 <!--
   Sync Impact Report
   ==================
-  Version change: 1.0.0 -> 1.1.0
-  Bump rationale: MINOR - materially expanded Architecture Constraints
-    (4th entity: ScanTarget) and Conventions (service layer, mapper,
-    loading state patterns established across Specs 001-006)
+  Version change: 1.1.0 -> 1.2.0
+  Bump rationale: MINOR - materially expanded Extension Host Conventions
+    (panel manager lifecycle, utility vs domain services) and WebView
+    Conventions (view router state machine, breadcrumb navigation,
+    domain color maps, button treatment, dual dispatch+postMessage
+    data loading pattern)
 
   Modified principles: None renamed or redefined
   Added sections: None (existing sections expanded)
   Removed sections: None
 
   Section changes:
-    - Architecture Constraints > Data Model: 3 entities -> 4 entities
-      (added ScanTarget)
-    - Architecture Constraints > Core Loop: updated to include scan
-      targets as organizing concept
     - Quality and Coding Conventions > Extension Host Conventions:
-      added service layer and mapper patterns
+      added panel manager lifecycle pattern, utility vs domain service
+      distinction
     - Quality and Coding Conventions > WebView Conventions:
-      added loading state and mock-data retention patterns
+      added view router state machine, breadcrumb navigation pattern,
+      domain color map convention, button treatment convention, dual
+      dispatch+postMessage data loading pattern
 
   Templates checked:
     - .specify/templates/plan-template.md ........... OK (Constitution
@@ -258,13 +259,25 @@ code (App.tsx) MUST NOT import from `mock-data.ts`.
 ### Extension Host Conventions (vsix/)
 
 - Named exports for all modules
-- Services: classes with injected dependencies via constructor, async
-  methods. Domain queries MUST go through service classes
-  (`DatabaseService`, `ScannerService`, `FindingsService`), not inline
-  Prisma calls in providers
+- **Domain services**: Classes with injected dependencies via
+  constructor, async methods. Domain queries MUST go through service
+  classes (`DatabaseService`, `ScannerService`, `FindingsService`),
+  not inline Prisma calls in providers
+- **Utility services**: Classes with only static methods (no instance
+  state, no constructor). Used for stateless operations like
+  `AdminService.resetApplication()` and
+  `AdminService.getApplicationInfo()`. Take raw dependencies as
+  method parameters, not constructor-injected
 - Providers: implement VS Code interfaces (`TreeDataProvider`,
   `WebviewViewProvider`). Providers receive services via setter methods
   (e.g., `setFindingsService()`)
+- **Panel managers**: Stateful classes that own webview panel lifecycle.
+  Use `ensurePanel()` helper (create if missing, reveal if exists).
+  Track instance state (e.g., `currentScanId`) as mutable members --
+  never capture state in closures passed to `onDidReceiveMessage`.
+  Route all inbound messages through a single `handleMessage()` switch
+  dispatcher. When creating a new panel, use `setTimeout` to defer
+  initial messages until the webview is ready
 - Mappers: `vsix/src/models/mappers.ts` contains pure functions that
   translate Prisma models to WebView view types (`mapFindingToRow`,
   `mapScanToSummary`, `mapScanTargetToView`). All Prisma-to-view
@@ -287,6 +300,30 @@ code (App.tsx) MUST NOT import from `mock-data.ts`.
   and sink demos
 - Always use `cn()` utility when combining Tailwind classes with props
 - ShadCN `ui/` files are auto-generated -- do not hand-edit
+- **View router**: `App.tsx` uses `useReducer` with a `ViewState`
+  discriminated union (`'loading' | 'dashboard' | 'findingList' |
+  'findingDetail' | ...`). A `viewHistory: ViewState[]` array tracks
+  navigation stack. Every navigation pushes the current view before
+  transitioning; `BACK` pops. No React Router -- the extension host
+  `init` message sets the context, the reducer manages view state
+- **Breadcrumb navigation**: Every editor panel view renders an
+  `AppBreadcrumb` at the top with clickable segments. Each view builds
+  its own segment array -- there is no centralized route config. The
+  last segment is the current page (non-clickable)
+- **Domain color maps**: `lib/theme-colors.ts` is the single source of
+  truth for severity and disposition colors. Pattern:
+  `bg-{color}-500/15 text-{color}-700 dark:text-{color}-400` (tinted
+  background with readable text in both themes). All components MUST
+  import from `theme-colors.ts` rather than hardcoding color classes
+- **Button treatment**: All buttons use `variant="outline"` (not
+  `variant="default"` which renders a solid primary background). This
+  gives a subtle, industrial look consistent with VS Code native UI.
+  Active or selected states use `variant="secondary"`
+- **Data loading on navigation**: When the user navigates to a scan or
+  scan target, the app MUST both `dispatch()` locally (to update view
+  state) AND `postMessage()` to the extension host (to load data from
+  the database). Missing either causes empty views or stale state.
+  See `selectScanTarget()` and `selectScan()` helpers in `App.tsx`
 - Loading state pattern: App starts with empty state and `'loading'`
   view. Transitions to `'dashboard'` on first `stateUpdate` message
   from the extension host. No mock data in production paths
@@ -323,4 +360,4 @@ code (App.tsx) MUST NOT import from `mock-data.ts`.
    removals or redefinitions, MINOR for new principles or material
    expansions, PATCH for clarifications and wording fixes.
 
-**Version**: 1.1.0 | **Ratified**: 2026-03-16 | **Last Amended**: 2026-03-17
+**Version**: 1.2.0 | **Ratified**: 2026-03-16 | **Last Amended**: 2026-03-18
