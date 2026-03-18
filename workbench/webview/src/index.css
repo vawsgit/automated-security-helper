@@ -1,6 +1,9 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* Force Tailwind to scan theme-colors.ts for dynamic class strings */
+@source "../src/lib/theme-colors.ts";
+
 @custom-variant dark (&:is(.vscode-dark *));
 
 @theme inline {
@@ -70,9 +73,10 @@
   --muted: var(--vscode-input-background, oklch(0.97 0 0));
   --muted-foreground: var(--vscode-descriptionForeground, oklch(0.556 0 0));
 
-  /* Accent (hover/focus) */
-  --accent: var(--vscode-list-hoverBackground, oklch(0.97 0 0));
-  --accent-foreground: var(--vscode-list-hoverForeground, oklch(0.205 0 0));
+  /* Accent (hover/focus) — list-hoverBackground is often near-invisible in dark
+     themes, so prefer inactiveSelectionBackground which has better contrast */
+  --accent: var(--vscode-list-inactiveSelectionBackground, var(--vscode-list-hoverBackground, oklch(0.97 0 0)));
+  --accent-foreground: var(--vscode-list-activeSelectionForeground, var(--vscode-list-hoverForeground, oklch(0.205 0 0)));
 
   /* Destructive */
   --destructive: var(--vscode-errorForeground, oklch(0.577 0.245 27.325));

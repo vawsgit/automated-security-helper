@@ -85,7 +85,7 @@ export function SidebarDashboard({ scans, summary, scanTargets }: SidebarDashboa
             return (
               <div
                 key={d}
-                className={`${dispositionColor[d].solid} transition-all`}
+                className={`${dispositionColor[d].fill} transition-all`}
                 style={{ width: `${width}%` }}
               />
             );
@@ -93,7 +93,7 @@ export function SidebarDashboard({ scans, summary, scanTargets }: SidebarDashboa
         </div>
         <div className="flex flex-wrap gap-1.5">
           {(Object.keys(summary.counts) as Disposition[]).map(d => (
-            <Badge key={d} className={`${dispositionColor[d].tinted} text-xs`}>
+            <Badge key={d} variant="outline" className={`${dispositionColor[d].tinted} text-xs`}>
               {d}: {summary.counts[d]}
             </Badge>
           ))}
@@ -110,7 +110,7 @@ export function SidebarDashboard({ scans, summary, scanTargets }: SidebarDashboa
             <div className="flex flex-wrap gap-1.5">
               {(Object.keys(latestScan.severityCounts) as Severity[]).map(s => (
                 latestScan.severityCounts[s] > 0 && (
-                  <Badge key={s} className={`${severityColor[s].base} text-xs`}>
+                  <Badge key={s} variant="outline" className={`${severityColor[s].base} text-xs`}>
                     {s}: {latestScan.severityCounts[s]}
                   </Badge>
                 )

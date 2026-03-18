@@ -13,15 +13,15 @@ interface AiAnalysisPanelProps {
 }
 
 const riskColors: Record<RiskLevel, string> = {
-  CRITICAL: 'bg-red-700 text-white',
-  HIGH: 'bg-orange-700 text-white',
-  MEDIUM: 'bg-yellow-600 text-white',
-  LOW: 'bg-blue-600 text-white',
-  NONE: 'bg-gray-400 text-white',
+  CRITICAL: 'bg-red-500/15 text-red-700 dark:text-red-400',
+  HIGH: 'bg-orange-500/15 text-orange-700 dark:text-orange-400',
+  MEDIUM: 'bg-yellow-500/15 text-yellow-700 dark:text-yellow-400',
+  LOW: 'bg-blue-500/15 text-blue-700 dark:text-blue-400',
+  NONE: 'bg-gray-500/15 text-gray-700 dark:text-gray-300',
 };
 
 function RiskBadge({ level }: { level: RiskLevel }) {
-  return <Badge className={`${riskColors[level]} text-xs`}>{level}</Badge>;
+  return <Badge variant="outline" className={`${riskColors[level]} text-xs`}>{level}</Badge>;
 }
 
 export function AiAnalysisPanel({ analysis }: AiAnalysisPanelProps) {

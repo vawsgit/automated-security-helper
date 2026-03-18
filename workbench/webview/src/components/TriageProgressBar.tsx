@@ -26,7 +26,7 @@ export function TriageProgressBar({ counts, total }: TriageProgressBarProps) {
           return (
             <div
               key={disposition}
-              className={`${dispositionColor[disposition].solid} transition-all`}
+              className={`${dispositionColor[disposition].fill} transition-all`}
               style={{ width: `${width}%` }}
             />
           );
@@ -38,7 +38,7 @@ export function TriageProgressBar({ counts, total }: TriageProgressBarProps) {
           {segments.map(({ disposition, label }) => (
             counts[disposition] > 0 && (
               <span key={disposition} className="flex items-center gap-1">
-                <span className={`inline-block w-2 h-2 rounded-full ${dispositionColor[disposition].solid}`} />
+                <span className={`inline-block w-2 h-2 rounded-full ${dispositionColor[disposition].fill}`} />
                 {label}: {counts[disposition]}
               </span>
             )

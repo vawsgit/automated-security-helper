@@ -21,11 +21,11 @@ export function CheckboxDemo() {
         <Checkbox id="toggle" disabled />
         <Label htmlFor="toggle">Enable notifications</Label>
       </div>
-      <Label className="flex items-start gap-3 rounded-lg border p-3 hover:bg-accent/50 has-[[aria-checked=true]]:border-blue-600 has-[[aria-checked=true]]:bg-blue-50 dark:has-[[aria-checked=true]]:border-blue-900 dark:has-[[aria-checked=true]]:bg-blue-950">
+      <Label className="flex items-start gap-3 rounded-lg border p-3 hover:bg-accent/50 has-[[aria-checked=true]]:border-foreground has-[[aria-checked=true]]:bg-accent">
         <Checkbox
           id="toggle-2"
           defaultChecked
-          className="data-[state=checked]:border-blue-600 data-[state=checked]:bg-blue-600 data-[state=checked]:text-white dark:data-[state=checked]:border-blue-700 dark:data-[state=checked]:bg-blue-700"
+          className="border-muted-foreground data-[state=checked]:bg-foreground data-[state=checked]:text-background data-[state=checked]:border-foreground"
         />
         <div className="grid gap-1.5 font-normal">
           <p className="text-sm leading-none font-medium">Enable notifications</p>

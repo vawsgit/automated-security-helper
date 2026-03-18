@@ -1,18 +1,45 @@
+import * as React from 'react';
 import { useState } from 'react';
 import {
   flexRender,
   getCoreRowModel,
+  getFacetedRowModel,
+  getFacetedUniqueValues,
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
+  type Column,
   type ColumnDef,
   type ColumnFiltersState,
   type SortingState,
 } from '@tanstack/react-table';
+import {
+  ArrowDown,
+  ArrowRight,
+  ArrowUp,
+  Check,
+  CheckCircle,
+  Circle,
+  CircleOff,
+  HelpCircle,
+  PlusCircle,
+  Timer,
+  X,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+} from '@/components/ui/command';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,6 +49,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Separator } from '@/components/ui/separator';
 import {
   Table,
   TableBody,
@@ -36,37 +69,172 @@ type Task = {
   title: string;
   status: 'todo' | 'in-progress' | 'done' | 'backlog' | 'canceled';
   priority: 'high' | 'medium' | 'low';
-  type: 'bug' | 'feature' | 'documentation';
+  label: 'bug' | 'feature' | 'documentation';
 };
 
-const statusStyles: Record<string, string> = {
-  'todo': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-  'in-progress': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-  'done': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-  'backlog': 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200',
-  'canceled': 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-};
+const statuses = [
+  { value: 'backlog', label: 'Backlog', icon: HelpCircle, color: 'text-muted-foreground' },
+  { value: 'todo', label: 'Todo', icon: Circle, color: 'text-blue-500' },
+  { value: 'in-progress', label: 'In Progress', icon: Timer, color: 'text-yellow-500' },
+  { value: 'done', label: 'Done', icon: CheckCircle, color: 'text-green-500' },
+  { value: 'canceled', label: 'Canceled', icon: CircleOff, color: 'text-red-500' },
+];
 
-const priorityStyles: Record<string, string> = {
-  'high': 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-  'medium': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-  'low': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-};
+const priorities = [
+  { value: 'low', label: 'Low', icon: ArrowDown, color: 'text-blue-500' },
+  { value: 'medium', label: 'Medium', icon: ArrowRight, color: 'text-yellow-500' },
+  { value: 'high', label: 'High', icon: ArrowUp, color: 'text-orange-500' },
+];
+
+const labels = [
+  { value: 'bug', label: 'Bug' },
+  { value: 'feature', label: 'Feature' },
+  { value: 'documentation', label: 'Documentation' },
+];
 
 const data: Task[] = [
-  { id: 'TASK-8782', title: 'Update API documentation for v2 endpoints', status: 'in-progress', priority: 'medium', type: 'documentation' },
-  { id: 'TASK-7839', title: 'Fix memory leak in WebSocket handler', status: 'todo', priority: 'high', type: 'bug' },
-  { id: 'TASK-1280', title: 'Resolve race condition in auth middleware', status: 'done', priority: 'high', type: 'bug' },
-  { id: 'TASK-7540', title: 'Add dark mode support to dashboard', status: 'in-progress', priority: 'medium', type: 'feature' },
-  { id: 'TASK-8686', title: 'Write migration guide for v1 to v2', status: 'backlog', priority: 'low', type: 'documentation' },
-  { id: 'TASK-1138', title: 'Implement rate limiting for public API', status: 'todo', priority: 'high', type: 'feature' },
-  { id: 'TASK-7195', title: 'Fix incorrect date parsing in reports', status: 'canceled', priority: 'medium', type: 'bug' },
-  { id: 'TASK-2318', title: 'Add export to CSV feature', status: 'backlog', priority: 'low', type: 'feature' },
-  { id: 'TASK-4495', title: 'Update onboarding flow documentation', status: 'in-progress', priority: 'medium', type: 'documentation' },
-  { id: 'TASK-5695', title: 'Fix pagination bug on findings page', status: 'todo', priority: 'high', type: 'bug' },
-  { id: 'TASK-9910', title: 'Add SSO support via SAML', status: 'backlog', priority: 'medium', type: 'feature' },
-  { id: 'TASK-6630', title: 'Fix timezone display in scan timestamps', status: 'done', priority: 'low', type: 'bug' },
+  { id: 'TASK-8782', title: 'Update API documentation for v2 endpoints', status: 'in-progress', priority: 'medium', label: 'documentation' },
+  { id: 'TASK-7839', title: 'Fix memory leak in WebSocket handler', status: 'todo', priority: 'high', label: 'bug' },
+  { id: 'TASK-1280', title: 'Resolve race condition in auth middleware', status: 'done', priority: 'high', label: 'bug' },
+  { id: 'TASK-7540', title: 'Add dark mode support to dashboard', status: 'in-progress', priority: 'medium', label: 'feature' },
+  { id: 'TASK-8686', title: 'Write migration guide for v1 to v2', status: 'backlog', priority: 'low', label: 'documentation' },
+  { id: 'TASK-1138', title: 'Implement rate limiting for public API', status: 'todo', priority: 'high', label: 'feature' },
+  { id: 'TASK-7195', title: 'Fix incorrect date parsing in reports', status: 'canceled', priority: 'medium', label: 'bug' },
+  { id: 'TASK-2318', title: 'Add export to CSV feature', status: 'backlog', priority: 'low', label: 'feature' },
+  { id: 'TASK-4495', title: 'Update onboarding flow documentation', status: 'in-progress', priority: 'medium', label: 'documentation' },
+  { id: 'TASK-5695', title: 'Fix pagination bug on findings page', status: 'todo', priority: 'high', label: 'bug' },
+  { id: 'TASK-9910', title: 'Add SSO support via SAML', status: 'backlog', priority: 'medium', label: 'feature' },
+  { id: 'TASK-6630', title: 'Fix timezone display in scan timestamps', status: 'done', priority: 'low', label: 'bug' },
 ];
+
+// --- Faceted Filter Component ---
+
+interface FacetedFilterProps<TData, TValue> {
+  column?: Column<TData, TValue>;
+  title?: string;
+  options: {
+    label: string;
+    value: string;
+    icon?: React.ComponentType<{ className?: string }>;
+  }[];
+}
+
+function FacetedFilter<TData, TValue>({
+  column,
+  title,
+  options,
+}: FacetedFilterProps<TData, TValue>) {
+  const facets = column?.getFacetedUniqueValues();
+  const selectedValues = new Set(column?.getFilterValue() as string[]);
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm" className="h-8 border-dashed">
+          <PlusCircle className="size-4" />
+          {title}
+          {selectedValues?.size > 0 && (
+            <>
+              <Separator orientation="vertical" className="mx-2 h-4" />
+              <Badge
+                variant="secondary"
+                className="rounded-sm px-1 font-normal lg:hidden"
+              >
+                {selectedValues.size}
+              </Badge>
+              <div className="hidden gap-1 lg:flex">
+                {selectedValues.size > 2 ? (
+                  <Badge
+                    variant="secondary"
+                    className="rounded-sm px-1 font-normal"
+                  >
+                    {selectedValues.size} selected
+                  </Badge>
+                ) : (
+                  options
+                    .filter((option) => selectedValues.has(option.value))
+                    .map((option) => (
+                      <Badge
+                        variant="secondary"
+                        key={option.value}
+                        className="rounded-sm px-1 font-normal"
+                      >
+                        {option.label}
+                      </Badge>
+                    ))
+                )}
+              </div>
+            </>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[200px] p-0" align="start">
+        <Command>
+          <CommandInput placeholder={title} />
+          <CommandList>
+            <CommandEmpty>No results found.</CommandEmpty>
+            <CommandGroup>
+              {options.map((option) => {
+                const isSelected = selectedValues.has(option.value);
+                return (
+                  <CommandItem
+                    key={option.value}
+                    onSelect={() => {
+                      if (isSelected) {
+                        selectedValues.delete(option.value);
+                      } else {
+                        selectedValues.add(option.value);
+                      }
+                      const filterValues = Array.from(selectedValues);
+                      column?.setFilterValue(
+                        filterValues.length ? filterValues : undefined,
+                      );
+                    }}
+                  >
+                    <div
+                      className={cn(
+                        'flex size-4 items-center justify-center rounded-[4px] border',
+                        isSelected
+                          ? 'bg-primary border-primary text-primary-foreground'
+                          : 'border-input [&_svg]:invisible',
+                      )}
+                    >
+                      <Check className="text-primary-foreground size-3.5" />
+                    </div>
+                    {option.icon && (
+                      <option.icon className="text-muted-foreground size-4" />
+                    )}
+                    <span>{option.label}</span>
+                    {facets?.get(option.value) && (
+                      <span className="text-muted-foreground ml-auto flex size-4 items-center justify-center font-mono text-xs">
+                        {facets.get(option.value)}
+                      </span>
+                    )}
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+            {selectedValues.size > 0 && (
+              <>
+                <CommandSeparator />
+                <CommandGroup>
+                  <CommandItem
+                    onSelect={() => column?.setFilterValue(undefined)}
+                    className="justify-center text-center"
+                  >
+                    Clear filters
+                  </CommandItem>
+                </CommandGroup>
+              </>
+            )}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+// --- Column Definitions ---
 
 const columns: ColumnDef<Task>[] = [
   {
@@ -79,6 +247,7 @@ const columns: ColumnDef<Task>[] = [
         }
         onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
         aria-label="Select all"
+        className="translate-y-[2px] border-muted-foreground data-[state=checked]:bg-foreground data-[state=checked]:text-background data-[state=checked]:border-foreground"
       />
     ),
     cell: ({ row }) => (
@@ -86,6 +255,7 @@ const columns: ColumnDef<Task>[] = [
         checked={row.getIsSelected()}
         onCheckedChange={(value) => row.toggleSelected(!!value)}
         aria-label="Select row"
+        className="translate-y-[2px] border-muted-foreground data-[state=checked]:bg-foreground data-[state=checked]:text-background data-[state=checked]:border-foreground"
       />
     ),
     enableSorting: false,
@@ -93,42 +263,56 @@ const columns: ColumnDef<Task>[] = [
   {
     accessorKey: 'id',
     header: 'Task',
-    cell: ({ row }) => <span className="font-mono text-xs">{row.getValue('id')}</span>,
-  },
-  {
-    accessorKey: 'type',
-    header: 'Type',
-    cell: ({ row }) => <span className="capitalize">{row.getValue('type')}</span>,
+    cell: ({ row }) => <div className="w-[80px]">{row.getValue('id')}</div>,
+    enableSorting: false,
   },
   {
     accessorKey: 'title',
     header: 'Title',
-    cell: ({ row }) => (
-      <span className="max-w-[300px] truncate block">{row.getValue('title')}</span>
-    ),
+    cell: ({ row }) => {
+      const label = labels.find((l) => l.value === row.original.label);
+      return (
+        <div className="flex gap-2">
+          {label && <Badge variant="outline">{label.label}</Badge>}
+          <span className="max-w-[500px] truncate font-medium">
+            {row.getValue('title')}
+          </span>
+        </div>
+      );
+    },
   },
   {
     accessorKey: 'status',
     header: 'Status',
     cell: ({ row }) => {
-      const status = row.getValue('status') as string;
+      const status = statuses.find((s) => s.value === row.getValue('status'));
+      if (!status) return null;
       return (
-        <Badge variant="outline" className={statusStyles[status]}>
-          {status}
-        </Badge>
+        <div className="flex w-[100px] items-center gap-2">
+          {status.icon && <status.icon className={cn('size-4', status.color)} />}
+          <span>{status.label}</span>
+        </div>
       );
+    },
+    filterFn: (row, id, value: string[]) => {
+      return value.includes(row.getValue(id));
     },
   },
   {
     accessorKey: 'priority',
     header: 'Priority',
     cell: ({ row }) => {
-      const priority = row.getValue('priority') as string;
+      const priority = priorities.find((p) => p.value === row.getValue('priority'));
+      if (!priority) return null;
       return (
-        <Badge variant="outline" className={priorityStyles[priority]}>
-          {priority}
-        </Badge>
+        <div className="flex items-center gap-2">
+          {priority.icon && <priority.icon className={cn('size-4', priority.color)} />}
+          <span>{priority.label}</span>
+        </div>
       );
+    },
+    filterFn: (row, id, value: string[]) => {
+      return value.includes(row.getValue(id));
     },
   },
   {
@@ -158,6 +342,8 @@ const columns: ColumnDef<Task>[] = [
   },
 ];
 
+// --- Main Demo ---
+
 export function TasksDemo() {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -172,23 +358,53 @@ export function TasksDemo() {
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    getFacetedRowModel: getFacetedRowModel(),
+    getFacetedUniqueValues: getFacetedUniqueValues(),
     onRowSelectionChange: setRowSelection,
     state: { sorting, columnFilters, rowSelection },
   });
+
+  const isFiltered = table.getState().columnFilters.length > 0;
 
   return (
     <div className="w-full space-y-4">
       <div>
         <h2 className="text-lg font-semibold">Welcome back!</h2>
-        <p className="text-sm text-muted-foreground">Here's a list of your tasks for this month.</p>
+        <p className="text-sm text-muted-foreground">Here&apos;s a list of your tasks for this month.</p>
       </div>
-      <div className="flex items-center">
-        <Input
-          placeholder="Filter tasks..."
-          value={(table.getColumn('title')?.getFilterValue() as string) ?? ''}
-          onChange={(event) => table.getColumn('title')?.setFilterValue(event.target.value)}
-          className="max-w-sm"
-        />
+      <div className="flex items-center justify-between">
+        <div className="flex flex-1 items-center gap-2">
+          <Input
+            placeholder="Filter tasks..."
+            value={(table.getColumn('title')?.getFilterValue() as string) ?? ''}
+            onChange={(event) => table.getColumn('title')?.setFilterValue(event.target.value)}
+            className="h-8 w-[150px] lg:w-[250px]"
+          />
+          {table.getColumn('status') && (
+            <FacetedFilter
+              column={table.getColumn('status')}
+              title="Status"
+              options={statuses}
+            />
+          )}
+          {table.getColumn('priority') && (
+            <FacetedFilter
+              column={table.getColumn('priority')}
+              title="Priority"
+              options={priorities}
+            />
+          )}
+          {isFiltered && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => table.resetColumnFilters()}
+            >
+              Reset
+              <X className="ml-1 size-4" />
+            </Button>
+          )}
+        </div>
       </div>
       <div className="overflow-hidden rounded-md border">
         <Table>
@@ -196,7 +412,7 @@ export function TasksDemo() {
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id}>
+                  <TableHead key={header.id} className="h-8 px-2">
                     {header.isPlaceholder
                       ? null
                       : flexRender(header.column.columnDef.header, header.getContext())}
@@ -210,7 +426,7 @@ export function TasksDemo() {
               table.getRowModel().rows.map((row) => (
                 <TableRow key={row.id} data-state={row.getIsSelected() && 'selected'}>
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
+                    <TableCell key={cell.id} className="px-2 py-1.5">
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}

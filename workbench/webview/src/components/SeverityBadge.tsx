@@ -5,7 +5,7 @@ import type { Severity } from '../types/types';
 export function SeverityBadge({ severity }: { severity: Severity }) {
   const { base, hover } = severityColor[severity];
   return (
-    <Badge className={`${base} ${hover}`}>
+    <Badge variant="outline" className={`${base} ${hover}`}>
       {severity}
     </Badge>
   );

@@ -5,7 +5,7 @@ import type { Disposition } from '../types/types';
 export function DispositionBadge({ disposition }: { disposition: Disposition }) {
   const { tinted, hover } = dispositionColor[disposition];
   return (
-    <Badge className={`${tinted} ${hover}`}>
+    <Badge variant="outline" className={`${tinted} ${hover}`}>
       {disposition}
     </Badge>
   );

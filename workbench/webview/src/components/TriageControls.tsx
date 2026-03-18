@@ -18,7 +18,7 @@ export function TriageControls({ disposition, onDispositionChange }: TriageContr
           size="sm"
           className={
             disposition === d
-              ? `${dispositionColor[d].solid} ring-2 ring-offset-1`
+              ? `${dispositionColor[d].fill} text-white ring-2 ring-offset-1`
               : `${dispositionColor[d].tinted} ${dispositionColor[d].hover}`
           }
           onClick={() => onDispositionChange(d)}

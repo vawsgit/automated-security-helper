@@ -22,7 +22,7 @@ export function SeverityChart({ counts }: SeverityChartProps) {
             <span className="w-16 text-right font-medium opacity-70">{s}</span>
             <div className="flex-1 h-4 rounded bg-gray-100 dark:bg-gray-800 overflow-hidden">
               <div
-                className={`h-full rounded ${severityColor[s].base} transition-all`}
+                className={`h-full rounded ${severityColor[s].fill} transition-all`}
                 style={{ width: `${barWidth}%` }}
               />
             </div>
