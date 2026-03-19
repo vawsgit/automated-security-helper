@@ -4,6 +4,7 @@ import type { Disposition } from '../types/types';
 interface TriageProgressBarProps {
   counts: Record<Disposition, number>;
   total: number;
+  activeTotal?: number;
 }
 
 const segments: { disposition: Disposition; label: string }[] = [
@@ -13,9 +14,18 @@ const segments: { disposition: Disposition; label: string }[] = [
   { disposition: 'PENDING', label: 'Pending' },
 ];
 
-export function TriageProgressBar({ counts, total }: TriageProgressBarProps) {
+export function TriageProgressBar({ counts, total, activeTotal }: TriageProgressBarProps) {
+  const denominator = activeTotal ?? total;
   const triaged = total - counts.PENDING;
-  const pct = total > 0 ? Math.round((triaged / total) * 100) : 0;
+  const pct = denominator > 0 ? Math.round((triaged / denominator) * 100) : 0;
+
+  if (denominator === 0 && total > 0) {
+    return (
+      <div className="space-y-2">
+        <p className="text-xs opacity-70">All findings suppressed</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-2">
@@ -33,7 +43,7 @@ export function TriageProgressBar({ counts, total }: TriageProgressBarProps) {
         })}
       </div>
       <div className="flex items-center justify-between text-xs opacity-70">
-        <span>{triaged} of {total} triaged ({pct}%)</span>
+        <span>{triaged} of {denominator} triaged ({pct}%)</span>
         <div className="flex gap-3">
           {segments.map(({ disposition, label }) => (
             counts[disposition] > 0 && (

@@ -2,11 +2,12 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { getWebviewHtml } from './webviewHtml';
 import type { WebviewToExtMessage } from '../models/messages';
-import type { FindingRow } from '../models/types';
+import type { FindingRow, AshYamlConfigSummary } from '../models/types';
 import type { ScannerService } from '../services/scanner';
 import type { FindingsService } from '../services/findings';
 import type { ScanTreeProvider } from './scanTreeProvider';
 import type { ScanRootService } from '../services/scanRoot';
+import type { AshYamlService } from '../services/ashYaml';
 import type { PrismaClient } from '@prisma/client';
 import { AdminService } from '../services/admin';
 
@@ -17,6 +18,7 @@ export class FindingsPanelManager {
   private findingsService: FindingsService | undefined;
   private scanTreeProvider: ScanTreeProvider | undefined;
   private scanRootService: ScanRootService | undefined;
+  private ashYamlService: AshYamlService | undefined;
   private adminDeps: { db: PrismaClient; extensionVersion: string; storagePath: string } | undefined;
 
   constructor(
@@ -41,6 +43,10 @@ export class FindingsPanelManager {
 
   setScanRootService(service: ScanRootService): void {
     this.scanRootService = service;
+  }
+
+  setAshYamlService(service: AshYamlService): void {
+    this.ashYamlService = service;
   }
 
   /**
@@ -148,6 +154,42 @@ export class FindingsPanelManager {
     });
   }
 
+  async postCurrentFindingsUpdate(): Promise<void> {
+    if (!this.findingsService || !this.scanRootService || !this.ashYamlService) {
+      return;
+    }
+    const result = await this.findingsService.getCurrentFindings(this.scanRootService, this.ashYamlService);
+    if (result) {
+      this.panel?.webview.postMessage({
+        type: 'currentFindingsUpdate',
+        payload: {
+          findings: result.findings,
+          suppressionSummary: result.summary,
+          scanId: result.scanId,
+          lastScannedAt: result.lastScannedAt,
+        },
+      });
+    }
+  }
+
+  async refreshCurrentFindings(): Promise<void> {
+    await this.postCurrentFindingsUpdate();
+    // If viewing a historical scan, re-overlay suppression data
+    if (this.currentScanId && this.findingsService && this.ashYamlService) {
+      const findings = await this.findingsService.getFindingsWithSuppressionOverlay(
+        this.currentScanId, this.ashYamlService,
+      );
+      this.postFindingsUpdate(this.currentScanId, findings);
+    }
+  }
+
+  postAshYamlChanged(config: AshYamlConfigSummary): void {
+    this.panel?.webview.postMessage({
+      type: 'ashYamlChanged',
+      payload: { config },
+    });
+  }
+
   public showScanning(scanId: string, targetPath: string): void {
     this.currentScanId = scanId;
     const isNew = this.ensurePanel();
@@ -182,14 +224,21 @@ export class FindingsPanelManager {
             });
           }
           await this.postStateUpdate();
+          await this.postCurrentFindingsUpdate();
         }
+        break;
+      }
+      case 'requestCurrentFindings': {
+        await this.postCurrentFindingsUpdate();
         break;
       }
       case 'selectScan': {
         if (this.findingsService) {
           const scanId = message.payload.scanId;
           this.currentScanId = scanId;
-          const findings = await this.findingsService.getFindings(scanId);
+          const findings = this.ashYamlService
+            ? await this.findingsService.getFindingsWithSuppressionOverlay(scanId, this.ashYamlService)
+            : await this.findingsService.getFindings(scanId);
           this.postFindingsUpdate(scanId, findings);
         }
         break;
@@ -283,7 +332,9 @@ export class FindingsPanelManager {
       case 'applyFilters': {
         if (this.findingsService) {
           const { scanId, filters } = message.payload;
-          const findings = await this.findingsService.getFindings(scanId, filters);
+          const findings = this.ashYamlService
+            ? await this.findingsService.getFindingsWithSuppressionOverlay(scanId, this.ashYamlService, filters)
+            : await this.findingsService.getFindings(scanId, filters);
           this.postFindingsUpdate(scanId, findings);
         }
         break;

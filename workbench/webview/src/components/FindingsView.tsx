@@ -62,6 +62,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { AppBreadcrumb } from './AppBreadcrumb';
 import { severityOrder } from '@/lib/theme-colors';
 import type { FindingRow, ScanTarget, Disposition } from '../types/types';
@@ -69,6 +71,8 @@ import type { FindingRow, ScanTarget, Disposition } from '../types/types';
 interface FindingsViewProps {
   findings: FindingRow[];
   selectedTarget?: ScanTarget;
+  showSuppressed?: boolean;
+  onToggleSuppressed?: () => void;
   onSelectFinding: (findingId: string) => void;
   onSetDisposition: (findingId: string, disposition: Disposition) => void;
   onNavigateDashboard: () => void;
@@ -219,7 +223,7 @@ function FacetedFilter<TData, TValue>({
 
 // --- Main Component ---
 
-export function FindingsView({ findings, selectedTarget, onSelectFinding, onSetDisposition, onNavigateDashboard, onClearTarget }: FindingsViewProps) {
+export function FindingsView({ findings, selectedTarget, showSuppressed, onToggleSuppressed, onSelectFinding, onSetDisposition, onNavigateDashboard, onClearTarget }: FindingsViewProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [rowSelection, setRowSelection] = useState({});
@@ -308,6 +312,11 @@ export function FindingsView({ findings, selectedTarget, onSelectFinding, onSetD
           <div className="flex items-center gap-2">
             <disp.icon className={cn('size-4', disp.color)} />
             <span>{disp.label}</span>
+            {row.original.isCurrentlySuppressed && (
+              <Badge variant="outline" className="bg-yellow-500/15 text-yellow-700 dark:text-yellow-400 text-[10px] px-1 py-0">
+                Suppressed
+              </Badge>
+            )}
           </div>
         );
       },
@@ -436,6 +445,18 @@ export function FindingsView({ findings, selectedTarget, onSelectFinding, onSetD
             </Button>
           )}
         </div>
+        {onToggleSuppressed && (
+          <div className="flex items-center gap-2">
+            <Switch
+              id="show-suppressed"
+              checked={showSuppressed ?? false}
+              onCheckedChange={onToggleSuppressed}
+            />
+            <Label htmlFor="show-suppressed" className="text-xs cursor-pointer">
+              Show suppressed
+            </Label>
+          </div>
+        )}
       </div>
 
       {/* Table */}
@@ -468,7 +489,7 @@ export function FindingsView({ findings, selectedTarget, onSelectFinding, onSetD
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && 'selected'}
-                  className="cursor-pointer"
+                  className={cn('cursor-pointer', row.original.isCurrentlySuppressed && 'opacity-50')}
                   onClick={() => onSelectFinding(row.original.id)}
                 >
                   {row.getVisibleCells().map(cell => (

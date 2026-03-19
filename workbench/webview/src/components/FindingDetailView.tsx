@@ -71,6 +71,11 @@ export function FindingDetailView({
           <span>Scanner: {finding.scanner}</span>
           <span>First detected: {formatDate(finding.firstDetectedAt)}</span>
           <DispositionBadge disposition={finding.disposition} />
+          {finding.isCurrentlySuppressed && (
+            <span className="inline-flex items-center rounded-md bg-yellow-500/15 text-yellow-700 dark:text-yellow-400 px-1.5 py-0.5 text-xs font-medium">
+              Suppressed via .ash.yaml
+            </span>
+          )}
         </div>
       </div>
 
@@ -149,7 +154,7 @@ export function FindingDetailView({
       )}
 
       {/* Section 6: Suppression */}
-      {finding.disposition === 'SUPPRESS' && (
+      {(finding.disposition === 'SUPPRESS' || finding.isCurrentlySuppressed) && (
         <>
           <Separator />
           <SuppressionPanel suppression={finding.suppression} disposition={finding.disposition} />

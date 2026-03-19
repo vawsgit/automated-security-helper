@@ -43,6 +43,8 @@ function makeFinding(overrides: Partial<FindingRow> = {}): FindingRow {
     firstDetectedAt: '2025-01-01T00:00:00Z',
     aiAnalysis: null,
     suppression: null,
+    isCurrentlySuppressed: false,
+    suppressionSource: null,
     ...overrides,
   };
 }

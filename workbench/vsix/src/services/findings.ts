@@ -1,6 +1,15 @@
 import type { PrismaClient, Disposition as PrismaDisposition } from '@prisma/client';
-import type { FindingRow, ScanSummary, ScanTarget, DispositionSummary, FilterState, Severity, Disposition } from '../models/types';
+import type { FindingRow, ScanSummary, ScanTarget, DispositionSummary, FilterState, Severity, Disposition, SuppressionSummary } from '../models/types';
 import { mapFindingToRow, mapScanToSummary, mapScanTargetToView } from '../models/mappers';
+import type { AshYamlService } from './ashYaml';
+import type { ScanRootService } from './scanRoot';
+
+export interface CurrentFindingsResult {
+  findings: FindingRow[];
+  summary: SuppressionSummary;
+  scanId: string;
+  lastScannedAt: string;
+}
 
 const DISPOSITION_KEYS: Disposition[] = ['PENDING', 'FIX', 'SUPPRESS', 'DEFER'];
 const SEVERITY_KEYS: Severity[] = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO'];
@@ -52,7 +61,7 @@ export class FindingsService {
     const findings = await this.db.finding.findMany({
       where: { scanTargetId },
     });
-    return findings.map(mapFindingToRow);
+    return findings.map(f => mapFindingToRow(f));
   }
 
   async getFindings(scanId: string, filters?: FilterState): Promise<FindingRow[]> {
@@ -74,7 +83,7 @@ export class FindingsService {
     }
 
     const findings = await this.db.finding.findMany({ where });
-    return findings.map(mapFindingToRow);
+    return findings.map(f => mapFindingToRow(f));
   }
 
   async getSummary(scanRootFilter?: { OR: Array<Record<string, unknown>> }): Promise<DispositionSummary> {
@@ -179,5 +188,84 @@ export class FindingsService {
     }
 
     return result;
+  }
+
+  async getCurrentFindings(
+    scanRootService: ScanRootService,
+    ashYamlService: AshYamlService,
+  ): Promise<CurrentFindingsResult | null> {
+    const scanRoot = scanRootService.getEffectiveScanRoot();
+
+    // Find latest completed scan for the scan root
+    const latestScan = await this.db.scan.findFirst({
+      where: {
+        projectId: this.projectId,
+        status: 'COMPLETED',
+        scanTarget: {
+          OR: [
+            { path: scanRoot },
+            { path: { startsWith: scanRoot } },
+          ],
+        },
+      },
+      orderBy: { startedAt: 'desc' },
+    });
+
+    if (!latestScan) {
+      return null;
+    }
+
+    // Fetch all findings for the latest scan
+    const findings = await this.db.finding.findMany({
+      where: { scanId: latestScan.id },
+    });
+
+    // Map findings to rows first (without suppression)
+    const rows = findings.map(f => mapFindingToRow(f));
+
+    // Batch match suppressions
+    const suppressionMap = ashYamlService.getMatchingSuppressions(rows);
+
+    // Re-map with suppression data
+    const enrichedRows = findings.map(f => {
+      const row = mapFindingToRow(f);
+      const match = suppressionMap.get(row.id);
+      if (match) {
+        return mapFindingToRow(f, match);
+      }
+      return row;
+    });
+
+    const suppressed = enrichedRows.filter(r => r.isCurrentlySuppressed).length;
+    const total = enrichedRows.length;
+
+    return {
+      findings: enrichedRows,
+      summary: { total, suppressed, active: total - suppressed },
+      scanId: latestScan.id,
+      lastScannedAt: latestScan.completedAt?.toISOString() ?? latestScan.startedAt.toISOString(),
+    };
+  }
+
+  async getFindingsWithSuppressionOverlay(
+    scanId: string,
+    ashYamlService: AshYamlService,
+    filters?: FilterState,
+  ): Promise<FindingRow[]> {
+    const findings = await this.getFindings(scanId, filters);
+    const suppressionMap = ashYamlService.getMatchingSuppressions(findings);
+
+    return findings.map(row => {
+      const match = suppressionMap.get(row.id);
+      if (match) {
+        return { ...row, isCurrentlySuppressed: true, suppressionSource: 'ash_yaml' as const, suppression: {
+          justification: match.reason,
+          yamlEntry: `- path: "${match.path}"\n  reason: "${match.reason}"`,
+          expiresAt: match.expiration,
+          createdAt: '',
+        }};
+      }
+      return row;
+    });
   }
 }

@@ -7,7 +7,7 @@ import { ScanTargetCard } from './ScanTargetCard';
 import { SeverityBadge } from './SeverityBadge';
 import { postMessage } from '../hooks/useVSCodeAPI';
 import { List, History, Play, FolderTree } from 'lucide-react';
-import type { Project, ScanTarget, ScanSummary, FindingRow, DispositionSummary, Severity } from '../types/types';
+import type { Project, ScanTarget, ScanSummary, FindingRow, DispositionSummary, Severity, SuppressionSummary } from '../types/types';
 
 interface DashboardViewProps {
   project: Project;
@@ -15,17 +15,24 @@ interface DashboardViewProps {
   scans: ScanSummary[];
   findings: FindingRow[];
   summary: DispositionSummary;
+  currentFindings?: FindingRow[];
+  suppressionSummary?: SuppressionSummary;
+  lastScannedAt?: string;
   onNavigate: (view: 'findingList' | 'scanHistory') => void;
   onSelectScanTarget: (scanTargetId: string) => void;
 }
 
 export function DashboardView({
-  project, scanTargets, scans, findings, summary, onNavigate, onSelectScanTarget,
+  project, scanTargets, scans, findings, summary, currentFindings, suppressionSummary, lastScannedAt, onNavigate, onSelectScanTarget,
 }: DashboardViewProps) {
 
-  const totalFindings = findings.length;
+  // Use current findings (active only) for severity breakdown when available
+  const activeFindings = currentFindings
+    ? currentFindings.filter(f => !f.isCurrentlySuppressed)
+    : findings;
+  const totalFindings = suppressionSummary?.active ?? findings.length;
   const severityCounts: Record<Severity, number> = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0, INFO: 0 };
-  for (const f of findings) {
+  for (const f of activeFindings) {
     severityCounts[f.severity]++;
   }
 
@@ -46,10 +53,17 @@ export function DashboardView({
 
       {/* Overall summary */}
       <div className="grid grid-cols-3 gap-4">
-        <SummaryCard title="Total Findings">
+        <SummaryCard title="Active Findings">
           <div className="space-y-1">
             <p className="text-2xl font-bold">{totalFindings}</p>
-            <p className="text-xs opacity-70">across {scanTargets.length} scan target{scanTargets.length !== 1 ? 's' : ''}</p>
+            <div className="flex items-center gap-2 text-xs opacity-70">
+              {suppressionSummary && suppressionSummary.suppressed > 0 && (
+                <span>{suppressionSummary.suppressed} suppressed</span>
+              )}
+              {lastScannedAt && (
+                <span>Last scanned {new Date(lastScannedAt).toLocaleString()}</span>
+              )}
+            </div>
             <div className="flex gap-2 mt-2">
               {(['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO'] as const).map(s =>
                 severityCounts[s] > 0 && (
@@ -71,7 +85,7 @@ export function DashboardView({
         </SummaryCard>
 
         <SummaryCard title="Triage Progress">
-          <TriageProgressBar counts={summary.counts} total={summary.total} />
+          <TriageProgressBar counts={summary.counts} total={summary.total} activeTotal={suppressionSummary?.active} />
           <p className="text-xs opacity-70 mt-1">
             {summary.total - summary.counts.PENDING} of {summary.total} triaged
           </p>
@@ -106,7 +120,7 @@ export function DashboardView({
       <div className="flex gap-3">
         <Button variant="outline" size="sm" onClick={() => onNavigate('findingList')}>
           <List className="h-3.5 w-3.5 mr-1.5" />
-          All Findings
+          View Findings
         </Button>
         <Button size="sm" variant="outline" onClick={() => onNavigate('scanHistory')}>
           <History className="h-3.5 w-3.5 mr-1.5" />

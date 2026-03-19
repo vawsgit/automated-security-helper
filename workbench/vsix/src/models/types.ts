@@ -76,6 +76,8 @@ export interface FindingRow {
   firstDetectedAt: string;
   aiAnalysis: AiAnalysis | null;
   suppression: SuppressionData | null;
+  isCurrentlySuppressed: boolean;
+  suppressionSource: 'ash_yaml' | null;
 }
 
 export interface ScanTarget {
@@ -109,6 +111,20 @@ export interface ApplicationInfo {
     scanCount: number;
     findingCount: number;
   };
+}
+
+export interface SuppressionSummary {
+  total: number;
+  suppressed: number;
+  active: number;
+}
+
+export interface AshYamlConfigSummary {
+  suppressionCount: number;
+  ignorePathCount: number;
+  severityThreshold: string;
+  projectName: string | null;
+  enabledScanners: string[];
 }
 
 export interface AshSuppression {

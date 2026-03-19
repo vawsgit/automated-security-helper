@@ -55,7 +55,7 @@ const mockFindings: FindingRow[] = [
     severity: 'CRITICAL', disposition: 'PENDING', scanner: 'detect-secrets', ruleId: 'AWSKeyDetector',
     filePath: 'src/config/aws.ts', startLine: 15, endLine: 15,
     codeSnippet: 'const ACCESS_KEY = "AKIAIOSFODNN7EXAMPLE";',
-    notes: '', firstDetectedAt: '2026-03-11T10:02:00Z', aiAnalysis: null, suppression: null,
+    notes: '', firstDetectedAt: '2026-03-11T10:02:00Z', aiAnalysis: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
   },
   {
     id: 'f-002', scanId: 'scan-001', scanTargetId: 'st-001',
@@ -64,7 +64,7 @@ const mockFindings: FindingRow[] = [
     severity: 'CRITICAL', disposition: 'FIX', scanner: 'semgrep', ruleId: 'javascript.lang.security.audit.sqli',
     filePath: 'src/api/users.ts', startLine: 42, endLine: 44,
     codeSnippet: 'const query = `SELECT * FROM users WHERE id = ${req.params.id}`;',
-    notes: '', firstDetectedAt: '2026-03-11T10:02:00Z', aiAnalysis: null, suppression: null,
+    notes: '', firstDetectedAt: '2026-03-11T10:02:00Z', aiAnalysis: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
   },
   {
     id: 'f-003', scanId: 'scan-001', scanTargetId: 'st-001',
@@ -73,7 +73,7 @@ const mockFindings: FindingRow[] = [
     severity: 'HIGH', disposition: 'PENDING', scanner: 'semgrep', ruleId: 'javascript.browser.security.innerHTML',
     filePath: 'src/components/Comment.tsx', startLine: 28, endLine: 30,
     codeSnippet: 'element.innerHTML = userComment;',
-    notes: '', firstDetectedAt: '2026-03-11T10:02:00Z', aiAnalysis: null, suppression: null,
+    notes: '', firstDetectedAt: '2026-03-11T10:02:00Z', aiAnalysis: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
   },
   {
     id: 'f-004', scanId: 'scan-001', scanTargetId: 'st-001',
@@ -82,7 +82,7 @@ const mockFindings: FindingRow[] = [
     severity: 'HIGH', disposition: 'FIX', scanner: 'semgrep', ruleId: 'javascript.lang.security.insecure-transport',
     filePath: 'src/api/config.ts', startLine: 8, endLine: 8,
     codeSnippet: 'const API_URL = "http://api.example.com/v1";',
-    notes: '', firstDetectedAt: '2026-03-11T10:02:00Z', aiAnalysis: null, suppression: null,
+    notes: '', firstDetectedAt: '2026-03-11T10:02:00Z', aiAnalysis: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
   },
   {
     id: 'f-005', scanId: 'scan-001', scanTargetId: 'st-001',
@@ -91,7 +91,7 @@ const mockFindings: FindingRow[] = [
     severity: 'HIGH', disposition: 'PENDING', scanner: 'semgrep', ruleId: 'javascript.express.security.missing-auth',
     filePath: 'src/routes/admin.ts', startLine: 12, endLine: 14,
     codeSnippet: 'router.get("/admin/users", async (req, res) => {',
-    notes: '', firstDetectedAt: '2026-03-12T14:32:00Z', aiAnalysis: null, suppression: null,
+    notes: '', firstDetectedAt: '2026-03-12T14:32:00Z', aiAnalysis: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
   },
   {
     id: 'f-006', scanId: 'scan-001', scanTargetId: 'st-001',
@@ -100,7 +100,7 @@ const mockFindings: FindingRow[] = [
     severity: 'HIGH', disposition: 'DEFER', scanner: 'grype', ruleId: 'CVE-2021-23337',
     filePath: 'package.json', startLine: 25, endLine: 25,
     codeSnippet: '"lodash": "4.17.20"',
-    notes: '', firstDetectedAt: '2026-03-11T10:02:00Z', aiAnalysis: null, suppression: null,
+    notes: '', firstDetectedAt: '2026-03-11T10:02:00Z', aiAnalysis: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
   },
   {
     id: 'f-007', scanId: 'scan-001', scanTargetId: 'st-001',
@@ -109,7 +109,7 @@ const mockFindings: FindingRow[] = [
     severity: 'MEDIUM', disposition: 'FIX', scanner: 'checkov', ruleId: 'CKV_AWS_19',
     filePath: 'infra/s3.tf', startLine: 5, endLine: 12,
     codeSnippet: 'resource "aws_s3_bucket" "data" {\n  bucket = "my-data-bucket"\n}',
-    notes: '', firstDetectedAt: '2026-03-11T10:02:00Z', aiAnalysis: null, suppression: null,
+    notes: '', firstDetectedAt: '2026-03-11T10:02:00Z', aiAnalysis: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
   },
   {
     id: 'f-008', scanId: 'scan-001', scanTargetId: 'st-001',
@@ -118,7 +118,7 @@ const mockFindings: FindingRow[] = [
     severity: 'MEDIUM', disposition: 'PENDING', scanner: 'bandit', ruleId: 'B303',
     filePath: 'src/utils/hash.py', startLine: 7, endLine: 7,
     codeSnippet: 'digest = hashlib.md5(data).hexdigest()',
-    notes: '', firstDetectedAt: '2026-03-12T14:32:00Z', aiAnalysis: null, suppression: null,
+    notes: '', firstDetectedAt: '2026-03-12T14:32:00Z', aiAnalysis: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
   },
   {
     id: 'f-009', scanId: 'scan-001', scanTargetId: 'st-001',
@@ -127,7 +127,7 @@ const mockFindings: FindingRow[] = [
     severity: 'MEDIUM', disposition: 'SUPPRESS', scanner: 'cfn-nag', ruleId: 'W9',
     filePath: 'infra/template.yaml', startLine: 45, endLine: 52,
     codeSnippet: 'CidrIp: 0.0.0.0/0',
-    notes: '', firstDetectedAt: '2026-03-11T10:02:00Z', aiAnalysis: null, suppression: null,
+    notes: '', firstDetectedAt: '2026-03-11T10:02:00Z', aiAnalysis: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
   },
   {
     id: 'f-010', scanId: 'scan-001', scanTargetId: 'st-001',
@@ -136,7 +136,7 @@ const mockFindings: FindingRow[] = [
     severity: 'MEDIUM', disposition: 'PENDING', scanner: 'semgrep', ruleId: 'javascript.lang.security.insecure-random',
     filePath: 'src/auth/token.ts', startLine: 19, endLine: 19,
     codeSnippet: 'const token = Math.random().toString(36).substring(2);',
-    notes: '', firstDetectedAt: '2026-03-12T14:32:00Z', aiAnalysis: null, suppression: null,
+    notes: '', firstDetectedAt: '2026-03-12T14:32:00Z', aiAnalysis: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
   },
   {
     id: 'f-011', scanId: 'scan-001', scanTargetId: 'st-001',
@@ -145,7 +145,7 @@ const mockFindings: FindingRow[] = [
     severity: 'MEDIUM', disposition: 'DEFER', scanner: 'cdk-nag', ruleId: 'AwsSolutions-RDS10',
     filePath: 'infra/lib/database-stack.ts', startLine: 30, endLine: 38,
     codeSnippet: 'new rds.DatabaseInstance(this, "Database", {',
-    notes: '', firstDetectedAt: '2026-03-11T10:02:00Z', aiAnalysis: null, suppression: null,
+    notes: '', firstDetectedAt: '2026-03-11T10:02:00Z', aiAnalysis: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
   },
   {
     id: 'f-012', scanId: 'scan-001', scanTargetId: 'st-001',
@@ -154,7 +154,7 @@ const mockFindings: FindingRow[] = [
     severity: 'MEDIUM', disposition: 'PENDING', scanner: 'npm-audit', ruleId: 'GHSA-9wv6-86v2-598j',
     filePath: 'package-lock.json', startLine: 1, endLine: 1,
     codeSnippet: '"path-to-regexp": "0.1.7"',
-    notes: '', firstDetectedAt: '2026-03-12T14:32:00Z', aiAnalysis: null, suppression: null,
+    notes: '', firstDetectedAt: '2026-03-12T14:32:00Z', aiAnalysis: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
   },
   {
     id: 'f-013', scanId: 'scan-001', scanTargetId: 'st-001',
@@ -163,7 +163,7 @@ const mockFindings: FindingRow[] = [
     severity: 'LOW', disposition: 'FIX', scanner: 'semgrep', ruleId: 'javascript.lang.best-practice.no-console',
     filePath: 'src/api/middleware.ts', startLine: 55, endLine: 55,
     codeSnippet: 'console.log("Request body:", JSON.stringify(req.body));',
-    notes: '', firstDetectedAt: '2026-03-11T10:02:00Z', aiAnalysis: null, suppression: null,
+    notes: '', firstDetectedAt: '2026-03-11T10:02:00Z', aiAnalysis: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
   },
   {
     id: 'f-014', scanId: 'scan-001', scanTargetId: 'st-001',
@@ -172,7 +172,7 @@ const mockFindings: FindingRow[] = [
     severity: 'LOW', disposition: 'PENDING', scanner: 'semgrep', ruleId: 'javascript.express.best-practice.cors',
     filePath: 'src/app.ts', startLine: 10, endLine: 10,
     codeSnippet: 'const app = express();',
-    notes: '', firstDetectedAt: '2026-03-12T14:32:00Z', aiAnalysis: null, suppression: null,
+    notes: '', firstDetectedAt: '2026-03-12T14:32:00Z', aiAnalysis: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
   },
   {
     id: 'f-015', scanId: 'scan-001', scanTargetId: 'st-001',
@@ -181,7 +181,7 @@ const mockFindings: FindingRow[] = [
     severity: 'LOW', disposition: 'SUPPRESS', scanner: 'semgrep', ruleId: 'javascript.lang.best-practice.hardcoded-config',
     filePath: 'src/server.ts', startLine: 3, endLine: 3,
     codeSnippet: 'const PORT = 3000;',
-    notes: '', firstDetectedAt: '2026-03-11T10:02:00Z', aiAnalysis: null, suppression: null,
+    notes: '', firstDetectedAt: '2026-03-11T10:02:00Z', aiAnalysis: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
   },
   {
     id: 'f-016', scanId: 'scan-001', scanTargetId: 'st-001',
@@ -190,7 +190,7 @@ const mockFindings: FindingRow[] = [
     severity: 'LOW', disposition: 'PENDING', scanner: 'npm-audit', ruleId: 'unused-dependency',
     filePath: 'package.json', startLine: 18, endLine: 18,
     codeSnippet: '"moment": "^2.29.4"',
-    notes: '', firstDetectedAt: '2026-03-12T14:32:00Z', aiAnalysis: null, suppression: null,
+    notes: '', firstDetectedAt: '2026-03-12T14:32:00Z', aiAnalysis: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
   },
   {
     id: 'f-017', scanId: 'scan-001', scanTargetId: 'st-001',
@@ -199,7 +199,7 @@ const mockFindings: FindingRow[] = [
     severity: 'INFO', disposition: 'PENDING', scanner: 'semgrep', ruleId: 'javascript.lang.best-practice.todo-security',
     filePath: 'src/auth/login.ts', startLine: 88, endLine: 88,
     codeSnippet: '// TODO: implement rate limiting to prevent brute force',
-    notes: '', firstDetectedAt: '2026-03-11T10:02:00Z', aiAnalysis: null, suppression: null,
+    notes: '', firstDetectedAt: '2026-03-11T10:02:00Z', aiAnalysis: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
   },
   {
     id: 'f-018', scanId: 'scan-001', scanTargetId: 'st-001',
@@ -208,7 +208,7 @@ const mockFindings: FindingRow[] = [
     severity: 'INFO', disposition: 'PENDING', scanner: 'checkov', ruleId: 'CKV_DOCKER_7',
     filePath: 'Dockerfile', startLine: 12, endLine: 12,
     codeSnippet: 'RUN chmod 777 /app/data',
-    notes: '', firstDetectedAt: '2026-03-12T14:32:00Z', aiAnalysis: null, suppression: null,
+    notes: '', firstDetectedAt: '2026-03-12T14:32:00Z', aiAnalysis: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
   },
 ];
 

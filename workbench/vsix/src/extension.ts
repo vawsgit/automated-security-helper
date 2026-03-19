@@ -116,6 +116,7 @@ export async function activate(context: vscode.ExtensionContext) {
   findingsPanelManager.setFindingsService(findingsService);
   findingsPanelManager.setScanTreeProvider(scanTreeProvider);
   findingsPanelManager.setScanRootService(scanRootService);
+  findingsPanelManager.setAshYamlService(ashYamlService);
   // Admin dependencies for application info and reset
   const extensionVersion = context.extension?.packageJSON?.version ?? '0.0.0';
   const adminDeps = { db, extensionVersion, storagePath: context.globalStorageUri.fsPath };
@@ -139,6 +140,7 @@ export async function activate(context: vscode.ExtensionContext) {
   sidebarProvider.setScanTreeProvider(scanTreeProvider);
   sidebarProvider.setFindingsService(findingsService);
   sidebarProvider.setScanRootService(scanRootService);
+  sidebarProvider.setAshYamlService(ashYamlService);
   sidebarProvider.setAdminDeps(adminDeps);
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(SidebarWebviewProvider.viewType, sidebarProvider),
@@ -159,9 +161,22 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // Refresh UI when .ash.yaml config changes
   context.subscriptions.push(
-    ashYamlService.onDidChangeConfig(() => {
+    ashYamlService.onDidChangeConfig((config) => {
+      // Re-compute current findings with updated suppression rules
+      findingsPanelManager.refreshCurrentFindings();
       findingsPanelManager.postStateUpdate();
       sidebarProvider.queryStateAndPost();
+
+      // Notify webviews of .ash.yaml change
+      const configSummary = {
+        suppressionCount: config.suppressions.length,
+        ignorePathCount: config.ignorePaths.length,
+        severityThreshold: config.severityThreshold,
+        projectName: config.projectName || null,
+        enabledScanners: config.scanners.filter(s => s.enabled).map(s => s.name),
+      };
+      findingsPanelManager.postAshYamlChanged(configSummary);
+      sidebarProvider.postAshYamlChanged(configSummary);
     }),
   );
 

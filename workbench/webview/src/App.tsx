@@ -10,7 +10,7 @@ import { ScanProgressView } from './components/ScanProgressView';
 import { EmptyStateView } from './components/EmptyStateView';
 import SinkPage from './pages/sink/SinkPage';
 import type { ExtToWebviewMessage } from './types/messages';
-import type { Project, ScanTarget, ScanSummary, FindingRow, DispositionSummary, Disposition } from './types/types';
+import type { Project, ScanTarget, ScanSummary, FindingRow, DispositionSummary, Disposition, SuppressionSummary, AshYamlConfigSummary } from './types/types';
 
 type ViewState =
   | 'loading' | 'dashboard' | 'findingList' | 'findingDetail'
@@ -31,6 +31,11 @@ interface AppState {
   scanStatus: string;
   scanTargets: ScanTarget[];
   selectedScanTargetId: string | undefined;
+  currentFindings: FindingRow[];
+  suppressionSummary: SuppressionSummary;
+  showSuppressed: boolean;
+  lastScannedAt: string | undefined;
+  ashYamlConfig: AshYamlConfigSummary | undefined;
 }
 
 type AppAction =
@@ -44,6 +49,7 @@ type AppAction =
   | { type: 'START_SCAN'; targetPath: string }
   | { type: 'SELECT_SCAN_TARGET'; scanTargetId: string }
   | { type: 'CLEAR_SCAN_TARGET' }
+  | { type: 'TOGGLE_SHOW_SUPPRESSED' }
   | { type: 'BACK' }
   | { type: 'BACK_TO_LIST' };
 
@@ -70,6 +76,11 @@ const initialState: AppState = {
   scanStatus: '',
   scanTargets: [],
   selectedScanTargetId: undefined,
+  currentFindings: [],
+  suppressionSummary: { total: 0, suppressed: 0, active: 0 },
+  showSuppressed: false,
+  lastScannedAt: undefined,
+  ashYamlConfig: undefined,
 };
 
 function reducer(state: AppState, action: AppAction): AppState {
@@ -124,6 +135,17 @@ function reducer(state: AppState, action: AppAction): AppState {
             scanElapsed: msg.payload.elapsed,
             scanStatus: msg.payload.status,
           };
+        case 'currentFindingsUpdate':
+          return {
+            ...state,
+            currentFindings: msg.payload.findings,
+            suppressionSummary: msg.payload.suppressionSummary,
+            scanId: msg.payload.scanId || state.scanId,
+            lastScannedAt: msg.payload.lastScannedAt,
+            view: state.view === 'loading' ? 'dashboard' : state.view,
+          };
+        case 'ashYamlChanged':
+          return { ...state, ashYamlConfig: msg.payload.config };
         default:
           return state;
       }
@@ -200,6 +222,8 @@ function reducer(state: AppState, action: AppAction): AppState {
         ...state,
         selectedScanTargetId: undefined,
       };
+    case 'TOGGLE_SHOW_SUPPRESSED':
+      return { ...state, showSuppressed: !state.showSuppressed };
     case 'BACK': {
       const history = [...state.viewHistory];
       const prev = history.pop() ?? 'dashboard';
@@ -258,15 +282,24 @@ function EditorPanel({ state, dispatch }: { state: AppState; dispatch: React.Dis
             scans={state.scans}
             findings={state.findings}
             summary={state.summary}
+            currentFindings={state.currentFindings}
+            suppressionSummary={state.suppressionSummary}
+            lastScannedAt={state.lastScannedAt}
             onNavigate={navigate}
             onSelectScanTarget={selectScanTarget}
           />
         );
-      case 'findingList':
+      case 'findingList': {
+        // Filter suppressed findings unless showSuppressed is on
+        const visibleFindings = state.showSuppressed
+          ? activeFindings
+          : activeFindings.filter(f => !f.isCurrentlySuppressed);
         return (
           <FindingsView
-            findings={activeFindings}
+            findings={visibleFindings}
             selectedTarget={selectedTarget}
+            showSuppressed={state.showSuppressed}
+            onToggleSuppressed={() => dispatch({ type: 'TOGGLE_SHOW_SUPPRESSED' })}
             onSelectFinding={(findingId) => dispatch({ type: 'SELECT_FINDING', findingId })}
             onSetDisposition={(findingId, disposition) =>
               dispatch({ type: 'SET_DISPOSITION', findingId, disposition })
@@ -275,6 +308,7 @@ function EditorPanel({ state, dispatch }: { state: AppState; dispatch: React.Dis
             onClearTarget={() => dispatch({ type: 'CLEAR_SCAN_TARGET' })}
           />
         );
+      }
       case 'findingDetail':
         if (!state.selectedFinding) {
           navigate('findingList');
@@ -373,7 +407,16 @@ function App() {
   }, []);
 
   if (state.context === 'sidebar') {
-    return <SidebarDashboard scans={state.scans} summary={state.summary} scanTargets={state.scanTargets} />;
+    return (
+      <SidebarDashboard
+        scans={state.scans}
+        summary={state.summary}
+        scanTargets={state.scanTargets}
+        currentFindings={state.currentFindings}
+        suppressionSummary={state.suppressionSummary}
+        lastScannedAt={state.lastScannedAt}
+      />
+    );
   }
 
   if (state.context === 'sink') {

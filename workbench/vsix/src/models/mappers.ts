@@ -1,5 +1,5 @@
 import type { Scan, Finding, ScanTarget as PrismaScanTarget } from '@prisma/client';
-import type { ScanSummary, FindingRow, ScanTarget, Severity, Disposition, DispositionSummary } from './types';
+import type { ScanSummary, FindingRow, ScanTarget, Severity, Disposition, DispositionSummary, AshSuppression } from './types';
 
 const SEVERITY_KEYS: Severity[] = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO'];
 
@@ -44,7 +44,17 @@ export function mapScanTargetToView(target: PrismaScanTarget, aggregates: ScanTa
   };
 }
 
-export function mapFindingToRow(finding: Finding): FindingRow {
+function generateYamlEntry(s: AshSuppression): string {
+  const lines: string[] = [`- path: "${s.path}"`];
+  if (s.rule_id) { lines.push(`  rule_id: "${s.rule_id}"`); }
+  lines.push(`  reason: "${s.reason}"`);
+  if (s.line_start != null) { lines.push(`  line_start: ${s.line_start}`); }
+  if (s.line_end != null) { lines.push(`  line_end: ${s.line_end}`); }
+  if (s.expiration) { lines.push(`  expiration: "${s.expiration}"`); }
+  return lines.join('\n');
+}
+
+export function mapFindingToRow(finding: Finding, suppression?: AshSuppression): FindingRow {
   return {
     id: finding.id,
     scanId: finding.scanId,
@@ -62,6 +72,13 @@ export function mapFindingToRow(finding: Finding): FindingRow {
     notes: finding.notes ?? '',
     firstDetectedAt: new Date().toISOString(),
     aiAnalysis: null,
-    suppression: null,
+    suppression: suppression ? {
+      justification: suppression.reason,
+      yamlEntry: generateYamlEntry(suppression),
+      expiresAt: suppression.expiration,
+      createdAt: '',
+    } : null,
+    isCurrentlySuppressed: !!suppression,
+    suppressionSource: suppression ? 'ash_yaml' : null,
   };
 }

@@ -7,6 +7,8 @@ import type { FindingsPanelManager } from './findingsPanelManager';
 import type { SinkPanelManager } from './sinkPanelManager';
 import type { ScanTreeProvider } from './scanTreeProvider';
 import type { ScanRootService } from '../services/scanRoot';
+import type { AshYamlService } from '../services/ashYaml';
+import type { AshYamlConfigSummary } from '../models/types';
 import type { PrismaClient } from '@prisma/client';
 import { AdminService } from '../services/admin';
 
@@ -19,6 +21,7 @@ export class SidebarWebviewProvider implements vscode.WebviewViewProvider {
   private scanTreeProvider?: ScanTreeProvider;
   private findingsService?: FindingsService;
   private scanRootService?: ScanRootService;
+  private ashYamlService?: AshYamlService;
   private adminDeps?: { db: PrismaClient; extensionVersion: string; storagePath: string };
 
   constructor(
@@ -51,6 +54,10 @@ export class SidebarWebviewProvider implements vscode.WebviewViewProvider {
 
   setScanRootService(service: ScanRootService): void {
     this.scanRootService = service;
+  }
+
+  setAshYamlService(service: AshYamlService): void {
+    this.ashYamlService = service;
   }
 
   resolveWebviewView(
@@ -91,6 +98,29 @@ export class SidebarWebviewProvider implements vscode.WebviewViewProvider {
     this.view?.webview.postMessage({
       type: 'stateUpdate',
       payload: { scans, summary, scanTargets, scanRoot },
+    });
+
+    // Post current findings with suppression overlay
+    if (this.scanRootService && this.ashYamlService) {
+      const result = await this.findingsService.getCurrentFindings(this.scanRootService, this.ashYamlService);
+      if (result) {
+        this.view?.webview.postMessage({
+          type: 'currentFindingsUpdate',
+          payload: {
+            findings: result.findings,
+            suppressionSummary: result.summary,
+            scanId: result.scanId,
+            lastScannedAt: result.lastScannedAt,
+          },
+        });
+      }
+    }
+  }
+
+  postAshYamlChanged(config: AshYamlConfigSummary): void {
+    this.view?.webview.postMessage({
+      type: 'ashYamlChanged',
+      payload: { config },
     });
   }
 
