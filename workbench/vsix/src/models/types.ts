@@ -110,3 +110,33 @@ export interface ApplicationInfo {
     findingCount: number;
   };
 }
+
+export interface AshSuppression {
+  path: string;
+  reason: string;
+  rule_id: string | null;
+  line_start: number | null;
+  line_end: number | null;
+  expiration: string | null;
+}
+
+export interface AshIgnorePath {
+  path: string;
+  reason: string;
+  expiration: string | null;
+}
+
+export interface AshScannerEntry {
+  name: string;
+  enabled: boolean;
+}
+
+export interface AshYamlConfig {
+  suppressions: AshSuppression[];
+  ignorePaths: AshIgnorePath[];
+  severityThreshold: 'ALL' | 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  projectName: string;
+  scanners: AshScannerEntry[];
+  failOnFindings: boolean;
+  configFilePath: string | null;
+}

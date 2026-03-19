@@ -9,6 +9,7 @@ import { FindingsPanelManager } from './providers/findingsPanelManager';
 import { SinkPanelManager } from './providers/sinkPanelManager';
 import { FindingsService } from './services/findings';
 import { ScanRootService } from './services/scanRoot';
+import { AshYamlService } from './services/ashYaml';
 import { AdminService } from './services/admin';
 
 export async function activate(context: vscode.ExtensionContext) {
@@ -97,6 +98,10 @@ export async function activate(context: vscode.ExtensionContext) {
   // Findings service
   const findingsService = new FindingsService(db, project.id);
 
+  // ASH YAML config service (reads .ash.yaml, provides suppression matching)
+  const ashYamlService = new AshYamlService(scanRootService.getEffectiveScanRoot());
+  context.subscriptions.push(ashYamlService);
+
   // Tree view
   const scanTreeProvider = new ScanTreeProvider();
   scanTreeProvider.setFindingsService(findingsService);
@@ -111,7 +116,6 @@ export async function activate(context: vscode.ExtensionContext) {
   findingsPanelManager.setFindingsService(findingsService);
   findingsPanelManager.setScanTreeProvider(scanTreeProvider);
   findingsPanelManager.setScanRootService(scanRootService);
-
   // Admin dependencies for application info and reset
   const extensionVersion = context.extension?.packageJSON?.version ?? '0.0.0';
   const adminDeps = { db, extensionVersion, storagePath: context.globalStorageUri.fsPath };
@@ -145,10 +149,19 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration('ashWorkbench.scanRoot')) {
         scanRootService.refresh();
+        ashYamlService.setScanRoot(scanRootService.getEffectiveScanRoot());
         findingsPanelManager.postStateUpdate();
         sidebarProvider.queryStateAndPost();
         scanTreeProvider.refresh();
       }
+    }),
+  );
+
+  // Refresh UI when .ash.yaml config changes
+  context.subscriptions.push(
+    ashYamlService.onDidChangeConfig(() => {
+      findingsPanelManager.postStateUpdate();
+      sidebarProvider.queryStateAndPost();
     }),
   );
 
