@@ -1,10 +1,12 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 import { getWebviewHtml } from './webviewHtml';
 import type { WebviewToExtMessage } from '../models/messages';
 import type { FindingRow } from '../models/types';
 import type { ScannerService } from '../services/scanner';
 import type { FindingsService } from '../services/findings';
 import type { ScanTreeProvider } from './scanTreeProvider';
+import type { ScanRootService } from '../services/scanRoot';
 import type { PrismaClient } from '@prisma/client';
 import { AdminService } from '../services/admin';
 
@@ -14,6 +16,7 @@ export class FindingsPanelManager {
   private scanner: ScannerService | undefined;
   private findingsService: FindingsService | undefined;
   private scanTreeProvider: ScanTreeProvider | undefined;
+  private scanRootService: ScanRootService | undefined;
   private adminDeps: { db: PrismaClient; extensionVersion: string; storagePath: string } | undefined;
 
   constructor(
@@ -34,6 +37,10 @@ export class FindingsPanelManager {
 
   setScanTreeProvider(provider: ScanTreeProvider): void {
     this.scanTreeProvider = provider;
+  }
+
+  setScanRootService(service: ScanRootService): void {
+    this.scanRootService = service;
   }
 
   /**
@@ -126,16 +133,18 @@ export class FindingsPanelManager {
     });
   }
 
-  private async postStateUpdate(): Promise<void> {
+  async postStateUpdate(): Promise<void> {
     if (!this.findingsService) {
       return;
     }
-    const scans = await this.findingsService.getScanSummaries();
-    const summary = await this.findingsService.getSummary();
-    const scanTargets = await this.findingsService.getScanTargets();
+    const filter = this.scanRootService?.buildPathFilter();
+    const scans = await this.findingsService.getScanSummaries(filter);
+    const summary = await this.findingsService.getSummary(filter);
+    const scanTargets = await this.findingsService.getScanTargets(filter);
+    const scanRoot = this.scanRootService?.getEffectiveScanRoot() ?? '';
     this.panel?.webview.postMessage({
       type: 'stateUpdate',
-      payload: { scans, summary, scanTargets },
+      payload: { scans, summary, scanTargets, scanRoot },
     });
   }
 
@@ -241,7 +250,8 @@ export class FindingsPanelManager {
       }
       case 'startScan': {
         if (this.scanner) {
-          const targetPath = message.payload.targetPath;
+          const targetPath = this.scanRootService?.getEffectiveScanRoot()
+            ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? '';
           this.panel?.webview.postMessage({
             type: 'scanStarted',
             payload: { scanId: 'pending', targetPath },
@@ -339,9 +349,10 @@ export class FindingsPanelManager {
       }
       case 'navigateToCode': {
         const filePath = message.payload.filePath;
-        const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+        const workspaceRoot = this.scanRootService?.getEffectiveScanRoot()
+          ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
         const absolutePath = workspaceRoot && !filePath.startsWith('/')
-          ? require('node:path').join(workspaceRoot, filePath)
+          ? path.join(workspaceRoot, filePath)
           : filePath;
         const uri = vscode.Uri.file(absolutePath);
         const range = new vscode.Range(

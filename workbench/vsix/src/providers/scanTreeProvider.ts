@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import type { ScanSummary } from '../models/types';
 import type { FindingsService } from '../services/findings';
+import type { ScanRootService } from '../services/scanRoot';
 
 export class ScanTreeProvider implements vscode.TreeDataProvider<ScanTreeItem> {
   private _onDidChangeTreeData = new vscode.EventEmitter<ScanTreeItem | undefined | void>();
@@ -8,9 +9,14 @@ export class ScanTreeProvider implements vscode.TreeDataProvider<ScanTreeItem> {
 
   private selectedScanId: string | undefined;
   private findingsService: FindingsService | undefined;
+  private scanRootService: ScanRootService | undefined;
 
   setFindingsService(service: FindingsService): void {
     this.findingsService = service;
+  }
+
+  setScanRootService(service: ScanRootService): void {
+    this.scanRootService = service;
   }
 
   getTreeItem(element: ScanTreeItem): vscode.TreeItem {
@@ -21,7 +27,8 @@ export class ScanTreeProvider implements vscode.TreeDataProvider<ScanTreeItem> {
     if (!this.findingsService) {
       return [];
     }
-    const scans = await this.findingsService.getScanSummaries();
+    const filter = this.scanRootService?.buildPathFilter();
+    const scans = await this.findingsService.getScanSummaries(filter);
     return scans.map(scan => new ScanTreeItem(scan));
   }
 

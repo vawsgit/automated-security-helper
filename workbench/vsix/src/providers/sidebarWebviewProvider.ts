@@ -6,6 +6,7 @@ import type { FindingsService } from '../services/findings';
 import type { FindingsPanelManager } from './findingsPanelManager';
 import type { SinkPanelManager } from './sinkPanelManager';
 import type { ScanTreeProvider } from './scanTreeProvider';
+import type { ScanRootService } from '../services/scanRoot';
 import type { PrismaClient } from '@prisma/client';
 import { AdminService } from '../services/admin';
 
@@ -17,6 +18,7 @@ export class SidebarWebviewProvider implements vscode.WebviewViewProvider {
   private scanner?: ScannerService;
   private scanTreeProvider?: ScanTreeProvider;
   private findingsService?: FindingsService;
+  private scanRootService?: ScanRootService;
   private adminDeps?: { db: PrismaClient; extensionVersion: string; storagePath: string };
 
   constructor(
@@ -47,6 +49,10 @@ export class SidebarWebviewProvider implements vscode.WebviewViewProvider {
     this.findingsService = service;
   }
 
+  setScanRootService(service: ScanRootService): void {
+    this.scanRootService = service;
+  }
+
   resolveWebviewView(
     webviewView: vscode.WebviewView,
     _context: vscode.WebviewViewResolveContext,
@@ -73,16 +79,18 @@ export class SidebarWebviewProvider implements vscode.WebviewViewProvider {
     });
   }
 
-  private async queryStateAndPost(): Promise<void> {
+  async queryStateAndPost(): Promise<void> {
     if (!this.findingsService) {
       return;
     }
-    const scans = await this.findingsService.getScanSummaries();
-    const summary = await this.findingsService.getSummary();
-    const scanTargets = await this.findingsService.getScanTargets();
+    const filter = this.scanRootService?.buildPathFilter();
+    const scans = await this.findingsService.getScanSummaries(filter);
+    const summary = await this.findingsService.getSummary(filter);
+    const scanTargets = await this.findingsService.getScanTargets(filter);
+    const scanRoot = this.scanRootService?.getEffectiveScanRoot() ?? '';
     this.view?.webview.postMessage({
       type: 'stateUpdate',
-      payload: { scans, summary, scanTargets },
+      payload: { scans, summary, scanTargets, scanRoot },
     });
   }
 
@@ -184,19 +192,20 @@ export class SidebarWebviewProvider implements vscode.WebviewViewProvider {
       return;
     }
 
-    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-    if (!workspaceRoot) {
+    const targetPath = this.scanRootService?.getEffectiveScanRoot()
+      ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    if (!targetPath) {
       vscode.window.showWarningMessage('ASH: No workspace folder open');
       return;
     }
 
     // Open findings panel immediately
     if (this.findingsPanelManager) {
-      this.findingsPanelManager.showScanning('pending', workspaceRoot);
+      this.findingsPanelManager.showScanning('pending', targetPath);
     }
 
     try {
-      const result = await this.scanner.startScan({ targetPath: workspaceRoot }, (progress) => {
+      const result = await this.scanner.startScan({ targetPath }, (progress) => {
         const scanId = this.scanner?.getCurrentScanId() ?? '';
         this.postProgress(scanId, progress.elapsed, progress.statusText);
         if (this.findingsPanelManager) {

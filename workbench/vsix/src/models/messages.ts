@@ -5,7 +5,7 @@ export type ExtToWebviewMessage =
   | { type: 'init'; payload: { context: 'sidebar' } }
   | { type: 'init'; payload: { context: 'editorPanel'; scanId: string } }
   | { type: 'init'; payload: { context: 'sink' } }
-  | { type: 'stateUpdate'; payload: { scans: ScanSummary[]; summary: DispositionSummary; scanTargets: ScanTarget[] } }
+  | { type: 'stateUpdate'; payload: { scans: ScanSummary[]; summary: DispositionSummary; scanTargets: ScanTarget[]; scanRoot: string } }
   | { type: 'findingsUpdate'; payload: { scanId: string; findings: FindingRow[] } }
   | { type: 'findingDetail'; payload: FindingRow }
   | { type: 'dispositionUpdated'; payload: { findingId: string; disposition: Disposition } }
@@ -24,7 +24,7 @@ export type WebviewToExtMessage =
   | { type: 'setDisposition'; payload: { findingId: string; disposition: Disposition } }
   | { type: 'setNotes'; payload: { findingId: string; notes: string } }
   | { type: 'navigateToCode'; payload: { filePath: string; startLine: number } }
-  | { type: 'startScan'; payload: { targetPath: string } }
+  | { type: 'startScan' }
   | { type: 'cancelScan'; payload: { scanId: string } }
   | { type: 'openFindings'; payload: { scanId: string } }
   | { type: 'openSink' }

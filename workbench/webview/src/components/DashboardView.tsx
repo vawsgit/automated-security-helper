@@ -1,12 +1,11 @@
-import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { AppBreadcrumb } from './AppBreadcrumb';
 import { SummaryCard } from './SummaryCard';
 import { TriageProgressBar } from './TriageProgressBar';
 import { ScanTargetCard } from './ScanTargetCard';
-import { ScanTargetPicker } from './ScanTargetPicker';
 import { SeverityBadge } from './SeverityBadge';
+import { postMessage } from '../hooks/useVSCodeAPI';
 import { List, History, Play, FolderTree } from 'lucide-react';
 import type { Project, ScanTarget, ScanSummary, FindingRow, DispositionSummary, Severity } from '../types/types';
 
@@ -17,14 +16,12 @@ interface DashboardViewProps {
   findings: FindingRow[];
   summary: DispositionSummary;
   onNavigate: (view: 'findingList' | 'scanHistory') => void;
-  onStartScan: (targetPath: string) => void;
   onSelectScanTarget: (scanTargetId: string) => void;
 }
 
 export function DashboardView({
-  project, scanTargets, scans, findings, summary, onNavigate, onStartScan, onSelectScanTarget,
+  project, scanTargets, scans, findings, summary, onNavigate, onSelectScanTarget,
 }: DashboardViewProps) {
-  const [pickerOpen, setPickerOpen] = useState(false);
 
   const totalFindings = findings.length;
   const severityCounts: Record<Severity, number> = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0, INFO: 0 };
@@ -39,19 +36,11 @@ export function DashboardView({
         <div className="space-y-1">
           <AppBreadcrumb segments={[{ label: 'Dashboard' }]} />
         </div>
-        <Button variant="outline" size="sm" onClick={() => setPickerOpen(true)}>
+        <Button variant="outline" size="sm" onClick={() => postMessage({ type: 'startScan' })}>
           <Play className="h-3.5 w-3.5 mr-1.5" />
           Run Scan
         </Button>
       </div>
-
-      <ScanTargetPicker
-        open={pickerOpen}
-        onOpenChange={setPickerOpen}
-        workspaceRoot={project.rootPath}
-        scanTargets={scanTargets}
-        onStartScan={onStartScan}
-      />
 
       <Separator />
 
@@ -105,7 +94,7 @@ export function DashboardView({
               target={target}
               isWorkspaceRoot={target.path === project.rootPath}
               onClick={() => onSelectScanTarget(target.id)}
-              onScan={() => onStartScan(target.path)}
+              onScan={() => postMessage({ type: 'startScan' })}
             />
           ))}
         </div>

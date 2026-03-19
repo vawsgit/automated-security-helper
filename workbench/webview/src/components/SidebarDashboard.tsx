@@ -45,7 +45,7 @@ export function SidebarDashboard({ scans, summary, scanTargets }: SidebarDashboa
         variant="outline"
         className="w-full"
         size="sm"
-        onClick={() => postMessage({ type: 'startScan', payload: { targetPath: '/home/user/projects/my-web-app' } })}
+        onClick={() => postMessage({ type: 'startScan' })}
       >
         <Play className="h-3.5 w-3.5 mr-1.5" />
         Scan Workspace

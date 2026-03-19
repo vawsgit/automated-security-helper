@@ -77,10 +77,15 @@ export class FindingsService {
     return findings.map(mapFindingToRow);
   }
 
-  async getSummary(): Promise<DispositionSummary> {
+  async getSummary(scanRootFilter?: { OR: Array<Record<string, unknown>> }): Promise<DispositionSummary> {
+    const where: Record<string, unknown> = { projectId: this.projectId };
+    if (scanRootFilter) {
+      where.scanTarget = scanRootFilter;
+    }
+
     const groups = await this.db.finding.groupBy({
       by: ['disposition'],
-      where: { projectId: this.projectId },
+      where,
       _count: true,
     });
 
@@ -98,17 +103,27 @@ export class FindingsService {
     return { total, counts };
   }
 
-  async getScanSummaries(): Promise<ScanSummary[]> {
+  async getScanSummaries(scanRootFilter?: { OR: Array<Record<string, unknown>> }): Promise<ScanSummary[]> {
+    const where: Record<string, unknown> = { projectId: this.projectId };
+    if (scanRootFilter) {
+      where.scanTarget = scanRootFilter;
+    }
+
     const scans = await this.db.scan.findMany({
-      where: { projectId: this.projectId },
+      where,
       orderBy: { startedAt: 'desc' },
     });
     return scans.map(mapScanToSummary);
   }
 
-  async getScanTargets(): Promise<ScanTarget[]> {
+  async getScanTargets(scanRootFilter?: { OR: Array<Record<string, unknown>> }): Promise<ScanTarget[]> {
+    const where: Record<string, unknown> = { projectId: this.projectId };
+    if (scanRootFilter) {
+      Object.assign(where, scanRootFilter);
+    }
+
     const targets = await this.db.scanTarget.findMany({
-      where: { projectId: this.projectId },
+      where,
     });
 
     const result: ScanTarget[] = [];

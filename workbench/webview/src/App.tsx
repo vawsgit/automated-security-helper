@@ -259,7 +259,6 @@ function EditorPanel({ state, dispatch }: { state: AppState; dispatch: React.Dis
             findings={state.findings}
             summary={state.summary}
             onNavigate={navigate}
-            onStartScan={(targetPath) => dispatch({ type: 'START_SCAN', targetPath })}
             onSelectScanTarget={selectScanTarget}
           />
         );
@@ -303,13 +302,11 @@ function EditorPanel({ state, dispatch }: { state: AppState; dispatch: React.Dis
             scans={activeScans}
             selectedTarget={selectedTarget}
             scanTargets={state.scanTargets}
-            workspaceRoot={state.project.rootPath}
             onSelectScan={(scanId) => dispatch({ type: 'VIEW_SCAN_DETAIL', scanId })}
             onNavigateDashboard={navigateDashboard}
             onNavigate={navigate}
             onSelectScanTarget={selectScanTarget}
             onClearTarget={() => dispatch({ type: 'CLEAR_SCAN_TARGET' })}
-            onStartScan={(targetPath) => dispatch({ type: 'START_SCAN', targetPath })}
           />
         );
       case 'scanDetail': {

@@ -1,10 +1,9 @@
-import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { AppBreadcrumb } from './AppBreadcrumb';
 import { ScanCard } from './ScanCard';
-import { ScanTargetPicker } from './ScanTargetPicker';
 import { ScannerProgress } from './ScannerProgress';
+import { postMessage } from '../hooks/useVSCodeAPI';
 import { Play, Eye, X } from 'lucide-react';
 import type { ScanSummary, ScanTarget } from '../types/types';
 
@@ -12,13 +11,11 @@ interface ScanHistoryViewProps {
   scans: ScanSummary[];
   selectedTarget?: ScanTarget;
   scanTargets: ScanTarget[];
-  workspaceRoot: string;
   onSelectScan: (scanId: string) => void;
   onNavigateDashboard: () => void;
   onNavigate: (view: 'scanProgress' | 'findingList') => void;
   onSelectScanTarget: (scanTargetId: string) => void;
   onClearTarget: () => void;
-  onStartScan: (targetPath: string) => void;
 }
 
 const mockScanners = [
@@ -33,10 +30,9 @@ const mockScanners = [
 ];
 
 export function ScanHistoryView({
-  scans, selectedTarget, scanTargets, workspaceRoot, onSelectScan, onNavigateDashboard, onNavigate,
-  onSelectScanTarget, onClearTarget, onStartScan,
+  scans, selectedTarget, scanTargets, onSelectScan, onNavigateDashboard, onNavigate,
+  onSelectScanTarget, onClearTarget,
 }: ScanHistoryViewProps) {
-  const [pickerOpen, setPickerOpen] = useState(false);
   const activeScan = scans.find(s => s.status === 'RUNNING');
   const completedScans = scans.filter(s => s.status !== 'RUNNING');
 
@@ -62,19 +58,11 @@ export function ScanHistoryView({
             )}
           </div>
         </div>
-        <Button variant="outline" size="sm" onClick={() => setPickerOpen(true)}>
+        <Button variant="outline" size="sm" onClick={() => postMessage({ type: 'startScan' })}>
           <Play className="h-3.5 w-3.5 mr-1.5" />
           Run New Scan
         </Button>
       </div>
-
-      <ScanTargetPicker
-        open={pickerOpen}
-        onOpenChange={setPickerOpen}
-        workspaceRoot={workspaceRoot}
-        scanTargets={scanTargets}
-        onStartScan={onStartScan}
-      />
 
       {/* Target filter tabs */}
       {!selectedTarget && scanTargets.length > 1 && (

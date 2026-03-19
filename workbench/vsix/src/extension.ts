@@ -8,6 +8,7 @@ import { SidebarWebviewProvider } from './providers/sidebarWebviewProvider';
 import { FindingsPanelManager } from './providers/findingsPanelManager';
 import { SinkPanelManager } from './providers/sinkPanelManager';
 import { FindingsService } from './services/findings';
+import { ScanRootService } from './services/scanRoot';
 import { AdminService } from './services/admin';
 
 export async function activate(context: vscode.ExtensionContext) {
@@ -88,12 +89,18 @@ export async function activate(context: vscode.ExtensionContext) {
     }),
   );
 
+  // Scan root service
+  const workspaceRoot = workspaceFolders[0].uri.fsPath;
+  const scanRootService = new ScanRootService(workspaceRoot);
+  scanRootService.refresh();
+
   // Findings service
   const findingsService = new FindingsService(db, project.id);
 
   // Tree view
   const scanTreeProvider = new ScanTreeProvider();
   scanTreeProvider.setFindingsService(findingsService);
+  scanTreeProvider.setScanRootService(scanRootService);
   context.subscriptions.push(
     vscode.window.registerTreeDataProvider('ashWorkbench.scanHistory', scanTreeProvider),
   );
@@ -103,6 +110,7 @@ export async function activate(context: vscode.ExtensionContext) {
   findingsPanelManager.setScanner(scanner);
   findingsPanelManager.setFindingsService(findingsService);
   findingsPanelManager.setScanTreeProvider(scanTreeProvider);
+  findingsPanelManager.setScanRootService(scanRootService);
 
   // Admin dependencies for application info and reset
   const extensionVersion = context.extension?.packageJSON?.version ?? '0.0.0';
@@ -126,9 +134,22 @@ export async function activate(context: vscode.ExtensionContext) {
   sidebarProvider.setScanner(scanner);
   sidebarProvider.setScanTreeProvider(scanTreeProvider);
   sidebarProvider.setFindingsService(findingsService);
+  sidebarProvider.setScanRootService(scanRootService);
   sidebarProvider.setAdminDeps(adminDeps);
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(SidebarWebviewProvider.viewType, sidebarProvider),
+  );
+
+  // Listen for scan root setting changes
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration('ashWorkbench.scanRoot')) {
+        scanRootService.refresh();
+        findingsPanelManager.postStateUpdate();
+        sidebarProvider.queryStateAndPost();
+        scanTreeProvider.refresh();
+      }
+    }),
   );
 
   // Register scan commands with all dependencies

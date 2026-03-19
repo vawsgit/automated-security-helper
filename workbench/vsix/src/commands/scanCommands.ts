@@ -124,17 +124,5 @@ export function registerScanCommands(
       }
     }),
 
-    vscode.commands.registerCommand('ashWorkbench.scanFolder', async (folderUri: vscode.Uri) => {
-      if (!folderUri) {
-        vscode.window.showWarningMessage('ASH: No folder selected');
-        return;
-      }
-      const targetPath = folderUri.fsPath;
-
-      // Open findings panel immediately
-      findingsPanelManager.showScanning('pending', targetPath);
-
-      await executeScan(targetPath, scanner, findingsService, findingsPanelManager, sidebarWebviewProvider, scanTreeProvider);
-    }),
   );
 }

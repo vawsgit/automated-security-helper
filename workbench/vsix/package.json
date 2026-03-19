@@ -54,10 +54,6 @@
         "title": "ASH: Open Kitchen Sink"
       },
       {
-        "command": "ashWorkbench.scanFolder",
-        "title": "ASH: Run Security Scan"
-      },
-      {
         "command": "ashWorkbench.deleteScan",
         "title": "ASH: Delete Scan"
       },
@@ -79,17 +75,17 @@
           "group": "navigation"
         }
       ],
-      "explorer/context": [
-        {
-          "command": "ashWorkbench.scanFolder",
-          "when": "explorerResourceIsFolder",
-          "group": "ashWorkbench@1"
-        }
-      ]
+      "explorer/context": []
     },
     "configuration": {
       "title": "ASH Workbench",
       "properties": {
+        "ashWorkbench.scanRoot": {
+          "type": "string",
+          "default": "",
+          "scope": "resource",
+          "description": "Root directory for ASH scans and findings. Leave empty to use the workspace root."
+        },
         "ashWorkbench.ashPath": {
           "type": "string",
           "default": "ash",
