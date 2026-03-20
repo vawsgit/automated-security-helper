@@ -13,6 +13,7 @@ import { AshYamlService } from './services/ashYaml';
 import { AshYamlWriteService } from './services/ashYamlWrite';
 import { AdminService } from './services/admin';
 import { AiService } from './services/aiService';
+import { detectClaudeSettings } from './services/claudeSettingsDetector';
 
 export async function activate(context: vscode.ExtensionContext) {
   console.log('[ASH] Activating ASH Workbench extension');
@@ -104,6 +105,12 @@ export async function activate(context: vscode.ExtensionContext) {
   const aiService = new AiService(findingsService, workspaceRoot, ashChannel);
   context.subscriptions.push(aiService);
 
+  // Detect Claude Code settings for dashboard guidance (FR-008, FR-009)
+  const claudeSettingsDetection = await detectClaudeSettings();
+  if (claudeSettingsDetection.claudeSettingsDetected) {
+    console.log(`[ASH] Claude Code settings detected: provider=${claudeSettingsDetection.detectedProvider}`);
+  }
+
   // ASH YAML config service (reads .ash.yaml, provides suppression matching)
   const ashYamlService = new AshYamlService(scanRootService.getEffectiveScanRoot());
   context.subscriptions.push(ashYamlService);
@@ -128,6 +135,7 @@ export async function activate(context: vscode.ExtensionContext) {
   findingsPanelManager.setAshYamlService(ashYamlService);
   findingsPanelManager.setAshYamlWriteService(ashYamlWriteService);
   findingsPanelManager.setAiService(aiService);
+  findingsPanelManager.setClaudeSettingsDetection(claudeSettingsDetection);
   // Admin dependencies for application info and reset
   const extensionVersion = context.extension?.packageJSON?.version ?? '0.0.0';
   const adminDeps = { db, extensionVersion, storagePath: context.globalStorageUri.fsPath };
@@ -153,6 +161,7 @@ export async function activate(context: vscode.ExtensionContext) {
   sidebarProvider.setScanRootService(scanRootService);
   sidebarProvider.setAshYamlService(ashYamlService);
   sidebarProvider.setAiService(aiService);
+  sidebarProvider.setClaudeSettingsDetection(claudeSettingsDetection);
   sidebarProvider.setAdminDeps(adminDeps);
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(SidebarWebviewProvider.viewType, sidebarProvider),

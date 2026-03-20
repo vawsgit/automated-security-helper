@@ -8,6 +8,8 @@ export interface AiServiceConfig {
   provider: string;
   region: string;
   modelId: string;
+  awsProfile: string;
+  awsAuthRefresh: string;
   useClaudeSettings: boolean;
   maxBudgetUsd: number;
   maxTurns: number;
@@ -30,6 +32,8 @@ export class AiService implements vscode.Disposable {
       provider: config.get<string>('provider', ''),
       region: config.get<string>('region', ''),
       modelId: config.get<string>('modelId', ''),
+      awsProfile: config.get<string>('awsProfile', ''),
+      awsAuthRefresh: config.get<string>('awsAuthRefresh', ''),
       useClaudeSettings: config.get<boolean>('useClaudeSettings', true),
       maxBudgetUsd: config.get<number>('maxBudgetUsd', 1.0),
       maxTurns: config.get<number>('maxTurns', 15),

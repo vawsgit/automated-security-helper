@@ -12,6 +12,7 @@ import type { AshYamlWriteService } from '../services/ashYamlWrite';
 import type { PrismaClient } from '@prisma/client';
 import { AdminService } from '../services/admin';
 import type { AiService } from '../services/aiService';
+import type { ClaudeSettingsDetection } from '../services/claudeSettingsDetector';
 
 export class FindingsPanelManager {
   private panel: vscode.WebviewPanel | undefined;
@@ -23,6 +24,7 @@ export class FindingsPanelManager {
   private ashYamlService: AshYamlService | undefined;
   private ashYamlWriteService: AshYamlWriteService | undefined;
   private aiService: AiService | undefined;
+  private claudeSettingsDetection: ClaudeSettingsDetection | undefined;
   private adminDeps: { db: PrismaClient; extensionVersion: string; storagePath: string } | undefined;
 
   constructor(
@@ -59,6 +61,14 @@ export class FindingsPanelManager {
 
   setAiService(service: AiService): void {
     this.aiService = service;
+  }
+
+  setClaudeSettingsDetection(detection: ClaudeSettingsDetection): void {
+    this.claudeSettingsDetection = detection;
+  }
+
+  getClaudeSettingsDetection(): ClaudeSettingsDetection | undefined {
+    return this.claudeSettingsDetection;
   }
 
   /**

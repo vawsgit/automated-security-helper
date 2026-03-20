@@ -161,6 +161,17 @@
           "default": "read-only",
           "description": "Tool access level for AI analysis. 'read-only' allows file reading and searching only. 'full' also allows file editing and shell commands."
         },
+        "ashWorkbench.llm.awsProfile": {
+          "type": "string",
+          "default": "",
+          "description": "AWS profile name for LLM provider. Leave empty to inherit from Claude Code settings."
+        },
+        "ashWorkbench.llm.awsAuthRefresh": {
+          "type": "string",
+          "default": "",
+          "scope": "application",
+          "description": "Shell command to refresh AWS credentials. Leave empty to inherit from Claude Code settings. Restricted to user settings only for security."
+        },
         "ashWorkbench.llm.maxTurns": {
           "type": "number",
           "default": 15,
