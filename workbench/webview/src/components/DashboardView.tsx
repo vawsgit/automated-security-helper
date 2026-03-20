@@ -5,8 +5,9 @@ import { SummaryCard } from './SummaryCard';
 import { TriageProgressBar } from './TriageProgressBar';
 import { ScanTargetCard } from './ScanTargetCard';
 import { SeverityBadge } from './SeverityBadge';
+import { getAiErrorMessage } from '@/lib/ai-errors';
 import { postMessage } from '../hooks/useVSCodeAPI';
-import { List, History, Play, FolderTree, Shield } from 'lucide-react';
+import { List, History, Play, FolderTree, Shield, Cpu, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import type { Project, ScanTarget, ScanSummary, FindingRow, DispositionSummary, Severity, SuppressionSummary } from '../types/types';
 
 interface DashboardViewProps {
@@ -18,12 +19,17 @@ interface DashboardViewProps {
   currentFindings?: FindingRow[];
   suppressionSummary?: SuppressionSummary;
   lastScannedAt?: string;
+  claudeSettingsDetected: boolean;
+  detectedProvider: 'bedrock' | 'anthropic-api' | 'none';
+  aiTestStatus: 'idle' | 'testing' | 'success' | 'error';
+  aiTestResult: { success: boolean; model?: string; latencyMs: number; error?: { type: string; message: string } } | null;
+  onTestConnection: () => void;
   onNavigate: (view: 'findingList' | 'scanHistory' | 'suppressionManager') => void;
   onSelectScanTarget: (scanTargetId: string) => void;
 }
 
 export function DashboardView({
-  project, scanTargets, scans, findings, summary, currentFindings, suppressionSummary, lastScannedAt, onNavigate, onSelectScanTarget,
+  project, scanTargets, scans, findings, summary, currentFindings, suppressionSummary, lastScannedAt, claudeSettingsDetected, detectedProvider, aiTestStatus, aiTestResult, onTestConnection, onNavigate, onSelectScanTarget,
 }: DashboardViewProps) {
 
   // Use current findings (active only) for severity breakdown when available
@@ -91,6 +97,53 @@ export function DashboardView({
           </p>
         </SummaryCard>
       </div>
+
+      <Separator />
+
+      {/* AI Analysis Status */}
+      <SummaryCard title="AI Analysis">
+        {claudeSettingsDetected ? (
+          <div className="space-y-2">
+            <p className="text-xs opacity-60">
+              Claude Code settings detected — {detectedProvider === 'bedrock' ? 'AWS Bedrock' : 'Anthropic API'}
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={aiTestStatus === 'testing'}
+                onClick={onTestConnection}
+              >
+                {aiTestStatus === 'testing' ? (
+                  <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />Testing...</>
+                ) : (
+                  <><Cpu className="h-3.5 w-3.5 mr-1.5" />Test Connection</>
+                )}
+              </Button>
+              {aiTestStatus === 'success' && aiTestResult && (
+                <span className="flex items-center gap-1.5 text-xs text-green-700 dark:text-green-400">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  {aiTestResult.model} — {aiTestResult.latencyMs}ms
+                </span>
+              )}
+              {aiTestStatus === 'error' && aiTestResult?.error && (
+                <span className="flex items-center gap-1.5 text-xs text-red-700 dark:text-red-400">
+                  <XCircle className="h-3.5 w-3.5" />
+                  {getAiErrorMessage(aiTestResult.error.type)}
+                </span>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-xs opacity-60">No AI provider configured.</p>
+            <p className="text-xs opacity-50">Configure an AI provider in VS Code Settings to enable AI-assisted finding analysis.</p>
+            <Button variant="outline" size="sm" onClick={() => postMessage({ type: 'openSettings' })}>
+              Open Settings
+            </Button>
+          </div>
+        )}
+      </SummaryCard>
 
       <Separator />
 

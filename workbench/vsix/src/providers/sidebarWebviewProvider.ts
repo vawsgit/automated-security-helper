@@ -111,9 +111,10 @@ export class SidebarWebviewProvider implements vscode.WebviewViewProvider {
     const summary = await this.findingsService.getSummary(filter);
     const scanTargets = await this.findingsService.getScanTargets(filter);
     const scanRoot = this.scanRootService?.getEffectiveScanRoot() ?? '';
+    const claudeSettings = this.claudeSettingsDetection ?? { claudeSettingsDetected: false, detectedProvider: 'none' as const };
     this.view?.webview.postMessage({
       type: 'stateUpdate',
-      payload: { scans, summary, scanTargets, scanRoot },
+      payload: { scans, summary, scanTargets, scanRoot, claudeSettingsDetected: claudeSettings.claudeSettingsDetected, detectedProvider: claudeSettings.detectedProvider },
     });
 
     // Post current findings with suppression overlay

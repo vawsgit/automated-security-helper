@@ -45,6 +45,11 @@ interface AppState {
   suppressionManagerConfig: AshYamlConfigSummary | null;
   editingSuppressionIndex: number | null;
   addingNewSuppression: boolean;
+  // AI (Spec 020)
+  claudeSettingsDetected: boolean;
+  detectedProvider: 'bedrock' | 'anthropic-api' | 'none';
+  aiTestStatus: 'idle' | 'testing' | 'success' | 'error';
+  aiTestResult: { success: boolean; model?: string; latencyMs: number; error?: { type: string; message: string } } | null;
 }
 
 type AppAction =
@@ -66,6 +71,7 @@ type AppAction =
   | { type: 'CLOSE_SUPPRESSION_EDIT' }
   | { type: 'START_ADD_SUPPRESSION' }
   | { type: 'CANCEL_ADD_SUPPRESSION' }
+  | { type: 'SET_AI_TEST_STATUS'; status: 'testing' }
   | { type: 'BACK' }
   | { type: 'BACK_TO_LIST' };
 
@@ -104,6 +110,11 @@ const initialState: AppState = {
   suppressionManagerConfig: null,
   editingSuppressionIndex: null,
   addingNewSuppression: false,
+  // AI (Spec 020)
+  claudeSettingsDetected: false,
+  detectedProvider: 'none',
+  aiTestStatus: 'idle',
+  aiTestResult: null,
 };
 
 function reducer(state: AppState, action: AppAction): AppState {
@@ -125,6 +136,8 @@ function reducer(state: AppState, action: AppAction): AppState {
             scans: msg.payload.scans,
             summary: msg.payload.summary,
             scanTargets: msg.payload.scanTargets,
+            claudeSettingsDetected: msg.payload.claudeSettingsDetected,
+            detectedProvider: msg.payload.detectedProvider,
             view: state.view === 'loading' ? 'dashboard' : state.view,
           };
         case 'findingsUpdate':
@@ -190,6 +203,27 @@ function reducer(state: AppState, action: AppAction): AppState {
           if (msg.payload.success) {
             return { ...state, editingSuppressionIndex: null, addingNewSuppression: false };
           }
+          return state;
+        // AI Analysis (Spec 020)
+        case 'aiTestResult':
+          return {
+            ...state,
+            aiTestStatus: msg.payload.success ? 'success' : 'error',
+            aiTestResult: msg.payload,
+          };
+        case 'aiAnalysisResult': {
+          const updateAnalysis = (list: FindingRow[]) =>
+            list.map(f => f.id === msg.payload.findingId ? { ...f, aiAnalysis: msg.payload.analysis } : f);
+          const updatedSelected = state.selectedFinding?.id === msg.payload.findingId
+            ? { ...state.selectedFinding, aiAnalysis: msg.payload.analysis }
+            : state.selectedFinding;
+          return { ...state, findings: updateAnalysis(state.findings), currentFindings: updateAnalysis(state.currentFindings), selectedFinding: updatedSelected };
+        }
+        case 'aiAnalysisStarted':
+        case 'aiAnalysisProgress':
+        case 'aiAnalysisError':
+          // These events are acknowledged but visual progress/error display
+          // in the finding detail view is handled by a separate UI spec.
           return state;
         default:
           return state;
@@ -283,6 +317,8 @@ function reducer(state: AppState, action: AppAction): AppState {
       return { ...state, addingNewSuppression: true, editingSuppressionIndex: null };
     case 'CANCEL_ADD_SUPPRESSION':
       return { ...state, addingNewSuppression: false };
+    case 'SET_AI_TEST_STATUS':
+      return { ...state, aiTestStatus: action.status };
     case 'BACK': {
       const history = [...state.viewHistory];
       const prev = history.pop() ?? 'dashboard';
@@ -359,6 +395,14 @@ function EditorPanel({ state, dispatch }: { state: AppState; dispatch: React.Dis
             currentFindings={state.currentFindings}
             suppressionSummary={state.suppressionSummary}
             lastScannedAt={state.lastScannedAt}
+            claudeSettingsDetected={state.claudeSettingsDetected}
+            detectedProvider={state.detectedProvider}
+            aiTestStatus={state.aiTestStatus}
+            aiTestResult={state.aiTestResult}
+            onTestConnection={() => {
+              dispatch({ type: 'SET_AI_TEST_STATUS', status: 'testing' });
+              postMessage({ type: 'testAiConnection' });
+            }}
             onNavigate={navigate}
             onSelectScanTarget={selectScanTarget}
           />
@@ -526,6 +570,10 @@ function App() {
   }, []);
 
   if (state.context === 'sidebar') {
+    const handleTestConnection = () => {
+      dispatch({ type: 'SET_AI_TEST_STATUS', status: 'testing' });
+      postMessage({ type: 'testAiConnection' });
+    };
     return (
       <SidebarDashboard
         scans={state.scans}
@@ -535,6 +583,11 @@ function App() {
         suppressionSummary={state.suppressionSummary}
         lastScannedAt={state.lastScannedAt}
         ashYamlConfig={state.ashYamlConfig}
+        claudeSettingsDetected={state.claudeSettingsDetected}
+        detectedProvider={state.detectedProvider}
+        aiTestStatus={state.aiTestStatus}
+        aiTestResult={state.aiTestResult}
+        onTestConnection={handleTestConnection}
       />
     );
   }
