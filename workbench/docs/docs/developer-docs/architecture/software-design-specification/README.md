@@ -6,6 +6,10 @@ title: Overview
 
 A concise overview of what ASH Workbench is, why it exists, and what it does. Intended as a fast-read context document for AI processes, new contributors, and anyone who needs to understand the project without reading the full design specifications.
 
+:::info Design Intent vs. Current Implementation
+These documents reflect the **original design intent** for ASH Workbench. The project has evolved through numbered implementation specs, and the current codebase may differ from what is described here. For as-built documentation of specific subsystems, see the sibling architecture docs: [Extension Host](../extension-host.md), [Database](../database.md), [Services](../services.md), [AI Integration](../ai-integration.md), and [Suppression System](../suppression-system.md).
+:::
+
 ## What It Is
 
 ASH Workbench is a VS Code extension that provides a graphical interface for the [Automated Security Helper (ASH)](https://github.com/awslabs/automated-security-helper) -- an open-source security scanning CLI that aggregates findings from multiple static analysis tools (Bandit, Checkov, Semgrep, cdk-nag, cfn-nag, detect-secrets, Grype, npm-audit).
@@ -51,13 +55,17 @@ The extension runs entirely within the VS Code process. There are no external se
 
 ## What It Does NOT Do (Current Scope)
 
+:::warning
+The exclusions listed below reflect the original POC scope. Several of these features have since been implemented (AI analysis, suppression management, batch analysis). See [Project Overview](../../project-overview.md) for the current feature set.
+:::
+
 The initial version (POC/v1) deliberately excludes:
 
-- AI-enriched explanations or automated fix suggestions (LLM settings are configured but not active)
+- ~~AI-enriched explanations or automated fix suggestions~~ *(implemented in Specs 018–023)*
 - Category grouping of findings by root cause
 - Delta reports comparing findings between scan runs
-- Suppression file generation (`.ash.yaml` entries)
-- Batch triage operations
+- ~~Suppression file generation (`.ash.yaml` entries)~~ *(implemented in Spec 016)*
+- ~~Batch triage operations~~ *(batch analysis implemented in Spec 023)*
 - Research or implementation plan documents
 
 These are planned for future versions. The data model is designed to support them without schema rewrites.
