@@ -8,6 +8,7 @@ import type { FindingsService } from '../services/findings';
 import type { ScanTreeProvider } from './scanTreeProvider';
 import type { ScanRootService } from '../services/scanRoot';
 import type { AshYamlService } from '../services/ashYaml';
+import type { AshYamlWriteService } from '../services/ashYamlWrite';
 import type { PrismaClient } from '@prisma/client';
 import { AdminService } from '../services/admin';
 
@@ -19,6 +20,7 @@ export class FindingsPanelManager {
   private scanTreeProvider: ScanTreeProvider | undefined;
   private scanRootService: ScanRootService | undefined;
   private ashYamlService: AshYamlService | undefined;
+  private ashYamlWriteService: AshYamlWriteService | undefined;
   private adminDeps: { db: PrismaClient; extensionVersion: string; storagePath: string } | undefined;
 
   constructor(
@@ -47,6 +49,10 @@ export class FindingsPanelManager {
 
   setAshYamlService(service: AshYamlService): void {
     this.ashYamlService = service;
+  }
+
+  setAshYamlWriteService(service: AshYamlWriteService): void {
+    this.ashYamlWriteService = service;
   }
 
   /**
@@ -396,6 +402,26 @@ export class FindingsPanelManager {
       }
       case 'openSettings': {
         vscode.commands.executeCommand('workbench.action.openSettings', 'ashWorkbench');
+        break;
+      }
+      case 'suppressFinding': {
+        if (this.ashYamlWriteService) {
+          const result = await this.ashYamlWriteService.addSuppression(message.payload);
+          this.panel?.webview.postMessage({ type: 'suppressionResult', payload: result });
+        }
+        break;
+      }
+      case 'unsuppressFinding': {
+        if (this.ashYamlWriteService && this.findingsService && this.scanRootService && this.ashYamlService) {
+          // Get current findings with suppression overlay to find the matching suppression
+          const currentResult = await this.findingsService.getCurrentFindings(this.scanRootService, this.ashYamlService);
+          const findings = currentResult?.findings ?? [];
+          const result = await this.ashYamlWriteService.removeSuppression(
+            message.payload.findingId,
+            findings,
+          );
+          this.panel?.webview.postMessage({ type: 'suppressionResult', payload: result });
+        }
         break;
       }
       case 'navigateToCode': {

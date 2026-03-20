@@ -1,4 +1,4 @@
-import type { ScanSummary, ScanTarget, FindingRow, DispositionSummary, Disposition, FilterState, ApplicationInfo, SuppressionSummary, AshYamlConfigSummary } from './types';
+import type { ScanSummary, ScanTarget, FindingRow, DispositionSummary, Disposition, FilterState, ApplicationInfo, SuppressionSummary, AshYamlConfigSummary, SuppressionInput, SuppressionResult } from './types';
 
 // Extension Host -> WebView
 export type ExtToWebviewMessage =
@@ -15,7 +15,8 @@ export type ExtToWebviewMessage =
   | { type: 'applicationInfo'; payload: ApplicationInfo }
   | { type: 'applicationReset' }
   | { type: 'currentFindingsUpdate'; payload: { findings: FindingRow[]; suppressionSummary: SuppressionSummary; scanId: string; lastScannedAt: string } }
-  | { type: 'ashYamlChanged'; payload: { config: AshYamlConfigSummary } };
+  | { type: 'ashYamlChanged'; payload: { config: AshYamlConfigSummary } }
+  | { type: 'suppressionResult'; payload: SuppressionResult };
 
 // WebView -> Extension Host
 export type WebviewToExtMessage =
@@ -36,4 +37,6 @@ export type WebviewToExtMessage =
   | { type: 'openSettings' }
   | { type: 'requestApplicationInfo' }
   | { type: 'resetApplication' }
-  | { type: 'requestCurrentFindings' };
+  | { type: 'requestCurrentFindings' }
+  | { type: 'suppressFinding'; payload: SuppressionInput }
+  | { type: 'unsuppressFinding'; payload: { findingId: string } };

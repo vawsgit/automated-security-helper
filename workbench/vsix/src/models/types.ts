@@ -156,3 +156,24 @@ export interface AshYamlConfig {
   failOnFindings: boolean;
   configFilePath: string | null;
 }
+
+export type SuppressionScope = 'file_rule' | 'rule_everywhere' | 'file_all_rules';
+
+export interface SuppressionInput {
+  findingId: string;
+  filePath: string;
+  ruleId: string;
+  scope: SuppressionScope;
+  justification: string;
+  includeLineRange: boolean;
+  startLine: number | null;
+  endLine: number | null;
+  expiration: string | null;
+}
+
+export interface SuppressionResult {
+  success: boolean;
+  findingId: string;
+  action: 'suppress' | 'unsuppress';
+  error?: string;
+}

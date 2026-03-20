@@ -10,6 +10,7 @@ import { SinkPanelManager } from './providers/sinkPanelManager';
 import { FindingsService } from './services/findings';
 import { ScanRootService } from './services/scanRoot';
 import { AshYamlService } from './services/ashYaml';
+import { AshYamlWriteService } from './services/ashYamlWrite';
 import { AdminService } from './services/admin';
 
 export async function activate(context: vscode.ExtensionContext) {
@@ -102,6 +103,9 @@ export async function activate(context: vscode.ExtensionContext) {
   const ashYamlService = new AshYamlService(scanRootService.getEffectiveScanRoot());
   context.subscriptions.push(ashYamlService);
 
+  // ASH YAML write service (writes suppressions to .ash.yaml)
+  const ashYamlWriteService = new AshYamlWriteService(scanRootService.getEffectiveScanRoot(), ashYamlService);
+
   // Tree view
   const scanTreeProvider = new ScanTreeProvider();
   scanTreeProvider.setFindingsService(findingsService);
@@ -117,6 +121,7 @@ export async function activate(context: vscode.ExtensionContext) {
   findingsPanelManager.setScanTreeProvider(scanTreeProvider);
   findingsPanelManager.setScanRootService(scanRootService);
   findingsPanelManager.setAshYamlService(ashYamlService);
+  findingsPanelManager.setAshYamlWriteService(ashYamlWriteService);
   // Admin dependencies for application info and reset
   const extensionVersion = context.extension?.packageJSON?.version ?? '0.0.0';
   const adminDeps = { db, extensionVersion, storagePath: context.globalStorageUri.fsPath };
@@ -152,6 +157,7 @@ export async function activate(context: vscode.ExtensionContext) {
       if (e.affectsConfiguration('ashWorkbench.scanRoot')) {
         scanRootService.refresh();
         ashYamlService.setScanRoot(scanRootService.getEffectiveScanRoot());
+        ashYamlWriteService.setScanRoot(scanRootService.getEffectiveScanRoot());
         findingsPanelManager.postStateUpdate();
         sidebarProvider.queryStateAndPost();
         scanTreeProvider.refresh();

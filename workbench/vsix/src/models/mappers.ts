@@ -44,7 +44,7 @@ export function mapScanTargetToView(target: PrismaScanTarget, aggregates: ScanTa
   };
 }
 
-function generateYamlEntry(s: AshSuppression): string {
+export function generateYamlEntry(s: AshSuppression): string {
   const lines: string[] = [`- path: "${s.path}"`];
   if (s.rule_id) { lines.push(`  rule_id: "${s.rule_id}"`); }
   lines.push(`  reason: "${s.reason}"`);

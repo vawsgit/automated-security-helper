@@ -10,8 +10,9 @@ import { AiAnalysisPanel } from './AiAnalysisPanel';
 import { SuppressionPanel } from './SuppressionPanel';
 import { FindingNavigation } from './FindingNavigation';
 import { ExternalLink } from 'lucide-react';
+import { SuppressionForm } from './SuppressionForm';
 import { postMessage } from '../hooks/useVSCodeAPI';
-import type { FindingRow, Disposition } from '../types/types';
+import type { FindingRow, Disposition, SuppressionInput } from '../types/types';
 
 interface FindingDetailViewProps {
   finding: FindingRow;
@@ -22,6 +23,11 @@ interface FindingDetailViewProps {
   onNavigate: (findingId: string) => void;
   onSetDisposition: (findingId: string, disposition: Disposition) => void;
   onSetNotes: (findingId: string, notes: string) => void;
+  suppressionFormFindingId?: string | null;
+  suppressionPending?: boolean;
+  onOpenSuppressionForm?: (findingId: string) => void;
+  onCloseSuppressionForm?: () => void;
+  onSetSuppressionPending?: (pending: boolean) => void;
 }
 
 function formatDate(iso: string): string {
@@ -38,6 +44,11 @@ export function FindingDetailView({
   onNavigate,
   onSetDisposition,
   onSetNotes,
+  suppressionFormFindingId,
+  suppressionPending,
+  onOpenSuppressionForm,
+  onCloseSuppressionForm,
+  onSetSuppressionPending,
 }: FindingDetailViewProps) {
   const highlightLines = [];
   for (let i = finding.startLine; i <= finding.endLine; i++) {
@@ -157,7 +168,45 @@ export function FindingDetailView({
       {(finding.disposition === 'SUPPRESS' || finding.isCurrentlySuppressed) && (
         <>
           <Separator />
-          <SuppressionPanel suppression={finding.suppression} disposition={finding.disposition} />
+          <SuppressionPanel
+            suppression={finding.suppression}
+            disposition={finding.disposition}
+            findingId={finding.id}
+            isCurrentlySuppressed={finding.isCurrentlySuppressed}
+            suppressionSource={finding.suppressionSource}
+            onUnsuppress={onCloseSuppressionForm ? (findingId) => {
+              postMessage({ type: 'unsuppressFinding', payload: { findingId } });
+            } : undefined}
+          />
+        </>
+      )}
+
+      {/* Section 7: Suppress action (for non-suppressed findings) */}
+      {!finding.isCurrentlySuppressed && onOpenSuppressionForm && (
+        <>
+          <Separator />
+          <div className="space-y-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wide opacity-70">Suppress</h3>
+            {suppressionFormFindingId === finding.id ? (
+              <SuppressionForm
+                finding={finding}
+                isPending={suppressionPending ?? false}
+                onSubmit={(input: SuppressionInput) => {
+                  onSetSuppressionPending?.(true);
+                  postMessage({ type: 'suppressFinding', payload: input });
+                }}
+                onCancel={() => onCloseSuppressionForm?.()}
+              />
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onOpenSuppressionForm(finding.id)}
+              >
+                Suppress Finding
+              </Button>
+            )}
+          </div>
         </>
       )}
     </div>

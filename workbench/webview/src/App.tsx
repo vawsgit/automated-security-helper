@@ -36,6 +36,8 @@ interface AppState {
   showSuppressed: boolean;
   lastScannedAt: string | undefined;
   ashYamlConfig: AshYamlConfigSummary | undefined;
+  suppressionFormFindingId: string | null;
+  suppressionPending: boolean;
 }
 
 type AppAction =
@@ -50,6 +52,9 @@ type AppAction =
   | { type: 'SELECT_SCAN_TARGET'; scanTargetId: string }
   | { type: 'CLEAR_SCAN_TARGET' }
   | { type: 'TOGGLE_SHOW_SUPPRESSED' }
+  | { type: 'OPEN_SUPPRESSION_FORM'; findingId: string }
+  | { type: 'CLOSE_SUPPRESSION_FORM' }
+  | { type: 'SET_SUPPRESSION_PENDING'; pending: boolean }
   | { type: 'BACK' }
   | { type: 'BACK_TO_LIST' };
 
@@ -81,6 +86,8 @@ const initialState: AppState = {
   showSuppressed: false,
   lastScannedAt: undefined,
   ashYamlConfig: undefined,
+  suppressionFormFindingId: null,
+  suppressionPending: false,
 };
 
 function reducer(state: AppState, action: AppAction): AppState {
@@ -146,6 +153,11 @@ function reducer(state: AppState, action: AppAction): AppState {
           };
         case 'ashYamlChanged':
           return { ...state, ashYamlConfig: msg.payload.config };
+        case 'suppressionResult':
+          if (msg.payload.success) {
+            return { ...state, suppressionFormFindingId: null, suppressionPending: false };
+          }
+          return { ...state, suppressionPending: false };
         default:
           return state;
       }
@@ -224,6 +236,12 @@ function reducer(state: AppState, action: AppAction): AppState {
       };
     case 'TOGGLE_SHOW_SUPPRESSED':
       return { ...state, showSuppressed: !state.showSuppressed };
+    case 'OPEN_SUPPRESSION_FORM':
+      return { ...state, suppressionFormFindingId: action.findingId, suppressionPending: false };
+    case 'CLOSE_SUPPRESSION_FORM':
+      return { ...state, suppressionFormFindingId: null, suppressionPending: false };
+    case 'SET_SUPPRESSION_PENDING':
+      return { ...state, suppressionPending: action.pending };
     case 'BACK': {
       const history = [...state.viewHistory];
       const prev = history.pop() ?? 'dashboard';
@@ -327,6 +345,17 @@ function EditorPanel({ state, dispatch }: { state: AppState; dispatch: React.Dis
             }
             onSetNotes={(findingId, notes) =>
               dispatch({ type: 'SET_NOTES', findingId, notes })
+            }
+            suppressionFormFindingId={state.suppressionFormFindingId}
+            suppressionPending={state.suppressionPending}
+            onOpenSuppressionForm={(findingId) =>
+              dispatch({ type: 'OPEN_SUPPRESSION_FORM', findingId })
+            }
+            onCloseSuppressionForm={() =>
+              dispatch({ type: 'CLOSE_SUPPRESSION_FORM' })
+            }
+            onSetSuppressionPending={(pending) =>
+              dispatch({ type: 'SET_SUPPRESSION_PENDING', pending })
             }
           />
         );
