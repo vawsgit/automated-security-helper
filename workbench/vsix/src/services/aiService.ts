@@ -107,6 +107,7 @@ export class AiService implements vscode.Disposable {
     // Lazy import to avoid loading SDK until needed
     const { ClaudeAgentProvider } = await import('./claudeAgentProvider.js');
     const provider = new ClaudeAgentProvider(config);
+    provider.setLogger((msg) => this.log(msg));
     this.provider = provider;
     this.log('AI provider initialized');
     return provider;

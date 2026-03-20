@@ -7,6 +7,7 @@ import type {
   ProviderCapabilities,
 } from './aiProvider';
 import type { AiServiceConfig } from './aiService';
+import { buildSafetyHooks, type BlockedOperation } from './safetyHooks';
 
 // Minimal SDK types inlined to avoid ESM import issues (SDK is ESM-only, this project is CJS).
 // These mirror the shapes from @anthropic-ai/claude-agent-sdk/sdk.d.ts.
@@ -295,7 +296,22 @@ export function buildQueryOptions(config: AiServiceConfig): Record<string, unkno
 }
 
 export class ClaudeAgentProvider implements AiProvider {
+  private logFn: ((msg: string) => void) | undefined;
+
   constructor(private readonly config: AiServiceConfig) {}
+
+  /** Set an external log function (e.g., from AiService) for output channel logging. */
+  setLogger(logFn: (msg: string) => void): void {
+    this.logFn = logFn;
+  }
+
+  private log(message: string): void {
+    if (this.logFn) {
+      this.logFn(message);
+    } else {
+      console.log(`[ASH AI] ${message}`);
+    }
+  }
 
   async testConnection(): Promise<ConnectionTestResult> {
     const startTime = Date.now();
@@ -409,6 +425,13 @@ export class ClaudeAgentProvider implements AiProvider {
         options.resume = params.resume;
       }
 
+      // Safety hooks: block sensitive file reads and dangerous commands
+      const blockedOps: BlockedOperation[] = [];
+      options.hooks = buildSafetyHooks(
+        (msg) => this.log(msg),
+        blockedOps,
+      );
+
       const messages = query({
         prompt: buildSystemPrompt(params),
         options: options as never,
@@ -437,6 +460,16 @@ export class ClaudeAgentProvider implements AiProvider {
           if (progressEvent.type === 'error') {
             return;
           }
+        }
+
+        // Drain blocked ops queue → yield progress events for denied tool calls
+        while (blockedOps.length > 0) {
+          const op = blockedOps.shift()!;
+          yield {
+            type: 'progress' as const,
+            message: `Blocked: attempted to ${op.toolName.toLowerCase()} ${op.blockedInput}`,
+            toolName: op.toolName,
+          };
         }
       }
     } catch (err) {
