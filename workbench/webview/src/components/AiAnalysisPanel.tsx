@@ -6,10 +6,11 @@ import {
 } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
 import { CodeBlock } from './CodeBlock';
-import type { AiAnalysis, RiskLevel } from '../types/types';
+import type { AiAnalysis, AnalysisMetadata, RiskLevel } from '../types/types';
 
 interface AiAnalysisPanelProps {
   analysis: AiAnalysis | null;
+  metadata?: AnalysisMetadata | null;
 }
 
 const riskColors: Record<RiskLevel, string> = {
@@ -24,7 +25,7 @@ function RiskBadge({ level }: { level: RiskLevel }) {
   return <Badge variant="outline" className={`${riskColors[level]} text-xs`}>{level}</Badge>;
 }
 
-export function AiAnalysisPanel({ analysis }: AiAnalysisPanelProps) {
+export function AiAnalysisPanel({ analysis, metadata }: AiAnalysisPanelProps) {
   if (!analysis) return null;
 
   return (
@@ -98,6 +99,41 @@ export function AiAnalysisPanel({ analysis }: AiAnalysisPanelProps) {
                   </li>
                 ))}
               </ul>
+            </AccordionContent>
+          </AccordionItem>
+        )}
+
+        {/* Analysis Details */}
+        {metadata && (
+          <AccordionItem value="details">
+            <AccordionTrigger className="text-sm">Analysis Details</AccordionTrigger>
+            <AccordionContent>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="opacity-70">Model</span>
+                  <span>{metadata.modelId}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="opacity-70">Cost</span>
+                  <span>${metadata.costUsd.toFixed(4)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="opacity-70">Analyzed at</span>
+                  <span>{new Date(metadata.analyzedAt).toLocaleString()}</span>
+                </div>
+                {metadata.toolsUsed.length > 0 && (
+                  <div className="space-y-1">
+                    <span className="opacity-70">Tools used</span>
+                    <div className="flex flex-wrap gap-1">
+                      {metadata.toolsUsed.map((tool) => (
+                        <Badge key={tool} variant="outline" className="text-xs">
+                          {tool}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </AccordionContent>
           </AccordionItem>
         )}

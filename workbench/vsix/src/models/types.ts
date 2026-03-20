@@ -75,6 +75,7 @@ export interface FindingRow {
   notes: string;
   firstDetectedAt: string;
   aiAnalysis: AiAnalysis | null;
+  analysisMetadata: AnalysisMetadata | null;
   suppression: SuppressionData | null;
   isCurrentlySuppressed: boolean;
   suppressionSource: 'ash_yaml' | null;

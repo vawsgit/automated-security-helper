@@ -157,7 +157,7 @@ const rootFindings: FindingRow[] = [
     filePath: 'src/config/aws.ts', startLine: 15, endLine: 15,
     codeSnippet: 'const ACCESS_KEY = "AKIAIOSFODNN7EXAMPLE";',
     notes: '', firstDetectedAt: '2026-03-11T10:02:00Z',
-    aiAnalysis: aiAnalysisHardCodedKey, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
+    aiAnalysis: aiAnalysisHardCodedKey, analysisMetadata: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
   },
   {
     id: 'f-002', scanId: 'scan-001', scanTargetId: 'st-001',
@@ -167,7 +167,7 @@ const rootFindings: FindingRow[] = [
     filePath: 'src/api/users.ts', startLine: 42, endLine: 44,
     codeSnippet: 'const query = `SELECT * FROM users WHERE id = ${req.params.id}`;',
     notes: 'Migrating to parameterized queries in sprint 24.', firstDetectedAt: '2026-03-11T10:02:00Z',
-    aiAnalysis: aiAnalysisSqlInjection, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
+    aiAnalysis: aiAnalysisSqlInjection, analysisMetadata: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
   },
   {
     id: 'f-003', scanId: 'scan-001', scanTargetId: 'st-001',
@@ -177,7 +177,7 @@ const rootFindings: FindingRow[] = [
     filePath: 'src/components/Comment.tsx', startLine: 28, endLine: 30,
     codeSnippet: 'element.innerHTML = userComment;',
     notes: '', firstDetectedAt: '2026-03-11T10:02:00Z',
-    aiAnalysis: aiAnalysisXss, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
+    aiAnalysis: aiAnalysisXss, analysisMetadata: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
   },
   {
     id: 'f-004', scanId: 'scan-001', scanTargetId: 'st-001',
@@ -187,7 +187,7 @@ const rootFindings: FindingRow[] = [
     filePath: 'src/api/config.ts', startLine: 8, endLine: 8,
     codeSnippet: 'const API_URL = "http://api.example.com/v1";',
     notes: 'Switching to HTTPS in the config refactor.', firstDetectedAt: '2026-03-11T10:02:00Z',
-    aiAnalysis: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
+    aiAnalysis: null, analysisMetadata: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
   },
   {
     id: 'f-005', scanId: 'scan-001', scanTargetId: 'st-001',
@@ -197,7 +197,7 @@ const rootFindings: FindingRow[] = [
     filePath: 'src/routes/admin.ts', startLine: 12, endLine: 14,
     codeSnippet: 'router.get("/admin/users", async (req, res) => {',
     notes: '', firstDetectedAt: '2026-03-12T14:32:00Z',
-    aiAnalysis: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
+    aiAnalysis: null, analysisMetadata: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
   },
   {
     id: 'f-006', scanId: 'scan-001', scanTargetId: 'st-001',
@@ -207,7 +207,7 @@ const rootFindings: FindingRow[] = [
     filePath: 'package.json', startLine: 25, endLine: 25,
     codeSnippet: '"lodash": "4.17.20"',
     notes: 'Waiting on lodash v5 release before upgrading.', firstDetectedAt: '2026-03-11T10:02:00Z',
-    aiAnalysis: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
+    aiAnalysis: null, analysisMetadata: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
   },
   {
     id: 'f-007', scanId: 'scan-001', scanTargetId: 'st-001',
@@ -217,7 +217,7 @@ const rootFindings: FindingRow[] = [
     filePath: 'infra/s3.tf', startLine: 5, endLine: 12,
     codeSnippet: 'resource "aws_s3_bucket" "data" {\n  bucket = "my-data-bucket"\n}',
     notes: '', firstDetectedAt: '2026-03-11T10:02:00Z',
-    aiAnalysis: aiAnalysisS3, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
+    aiAnalysis: aiAnalysisS3, analysisMetadata: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
   },
   {
     id: 'f-008', scanId: 'scan-001', scanTargetId: 'st-001',
@@ -227,7 +227,7 @@ const rootFindings: FindingRow[] = [
     filePath: 'src/utils/hash.py', startLine: 7, endLine: 7,
     codeSnippet: 'digest = hashlib.md5(data).hexdigest()',
     notes: '', firstDetectedAt: '2026-03-12T14:32:00Z',
-    aiAnalysis: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
+    aiAnalysis: null, analysisMetadata: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
   },
   {
     id: 'f-009', scanId: 'scan-001', scanTargetId: 'st-001',
@@ -237,7 +237,7 @@ const rootFindings: FindingRow[] = [
     filePath: 'infra/template.yaml', startLine: 45, endLine: 52,
     codeSnippet: 'CidrIp: 0.0.0.0/0',
     notes: 'Public ALB - intentional.', firstDetectedAt: '2026-03-11T10:02:00Z',
-    aiAnalysis: null, suppression: suppressionSecurityGroup, isCurrentlySuppressed: true, suppressionSource: 'ash_yaml',
+    aiAnalysis: null, analysisMetadata: null, suppression: suppressionSecurityGroup, isCurrentlySuppressed: true, suppressionSource: 'ash_yaml',
   },
   {
     id: 'f-010', scanId: 'scan-001', scanTargetId: 'st-001',
@@ -247,7 +247,7 @@ const rootFindings: FindingRow[] = [
     filePath: 'src/auth/token.ts', startLine: 19, endLine: 19,
     codeSnippet: 'const token = Math.random().toString(36).substring(2);',
     notes: '', firstDetectedAt: '2026-03-12T14:32:00Z',
-    aiAnalysis: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
+    aiAnalysis: null, analysisMetadata: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
   },
   {
     id: 'f-011', scanId: 'scan-001', scanTargetId: 'st-001',
@@ -257,7 +257,7 @@ const rootFindings: FindingRow[] = [
     filePath: 'infra/lib/database-stack.ts', startLine: 30, endLine: 38,
     codeSnippet: 'new rds.DatabaseInstance(this, "Database", {',
     notes: 'Will enable after migration to production stack.', firstDetectedAt: '2026-03-11T10:02:00Z',
-    aiAnalysis: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
+    aiAnalysis: null, analysisMetadata: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
   },
   {
     id: 'f-012', scanId: 'scan-001', scanTargetId: 'st-001',
@@ -267,7 +267,7 @@ const rootFindings: FindingRow[] = [
     filePath: 'package-lock.json', startLine: 1, endLine: 1,
     codeSnippet: '"path-to-regexp": "0.1.7"',
     notes: '', firstDetectedAt: '2026-03-12T14:32:00Z',
-    aiAnalysis: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
+    aiAnalysis: null, analysisMetadata: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
   },
   {
     id: 'f-013', scanId: 'scan-001', scanTargetId: 'st-001',
@@ -277,7 +277,7 @@ const rootFindings: FindingRow[] = [
     filePath: 'src/api/middleware.ts', startLine: 55, endLine: 55,
     codeSnippet: 'console.log("Request body:", JSON.stringify(req.body));',
     notes: '', firstDetectedAt: '2026-03-11T10:02:00Z',
-    aiAnalysis: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
+    aiAnalysis: null, analysisMetadata: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
   },
   {
     id: 'f-014', scanId: 'scan-001', scanTargetId: 'st-001',
@@ -287,7 +287,7 @@ const rootFindings: FindingRow[] = [
     filePath: 'src/app.ts', startLine: 10, endLine: 10,
     codeSnippet: 'const app = express();',
     notes: '', firstDetectedAt: '2026-03-12T14:32:00Z',
-    aiAnalysis: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
+    aiAnalysis: null, analysisMetadata: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
   },
   {
     id: 'f-015', scanId: 'scan-001', scanTargetId: 'st-001',
@@ -297,7 +297,7 @@ const rootFindings: FindingRow[] = [
     filePath: 'src/server.ts', startLine: 3, endLine: 3,
     codeSnippet: 'const PORT = 3000;',
     notes: 'Dev-only default.', firstDetectedAt: '2026-03-11T10:02:00Z',
-    aiAnalysis: null, suppression: suppressionHardcodedPort, isCurrentlySuppressed: true, suppressionSource: 'ash_yaml',
+    aiAnalysis: null, analysisMetadata: null, suppression: suppressionHardcodedPort, isCurrentlySuppressed: true, suppressionSource: 'ash_yaml',
   },
   {
     id: 'f-016', scanId: 'scan-001', scanTargetId: 'st-001',
@@ -307,7 +307,7 @@ const rootFindings: FindingRow[] = [
     filePath: 'package.json', startLine: 18, endLine: 18,
     codeSnippet: '"moment": "^2.29.4"',
     notes: '', firstDetectedAt: '2026-03-12T14:32:00Z',
-    aiAnalysis: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
+    aiAnalysis: null, analysisMetadata: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
   },
   {
     id: 'f-017', scanId: 'scan-001', scanTargetId: 'st-001',
@@ -317,7 +317,7 @@ const rootFindings: FindingRow[] = [
     filePath: 'src/auth/login.ts', startLine: 88, endLine: 88,
     codeSnippet: '// TODO: implement rate limiting to prevent brute force',
     notes: '', firstDetectedAt: '2026-03-11T10:02:00Z',
-    aiAnalysis: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
+    aiAnalysis: null, analysisMetadata: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
   },
   {
     id: 'f-018', scanId: 'scan-001', scanTargetId: 'st-001',
@@ -327,7 +327,7 @@ const rootFindings: FindingRow[] = [
     filePath: 'Dockerfile', startLine: 12, endLine: 12,
     codeSnippet: 'RUN chmod 777 /app/data',
     notes: '', firstDetectedAt: '2026-03-12T14:32:00Z',
-    aiAnalysis: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
+    aiAnalysis: null, analysisMetadata: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
   },
 ];
 
@@ -342,7 +342,7 @@ const backendFindings: FindingRow[] = [
     filePath: 'api/handlers/transform.py', startLine: 45, endLine: 45,
     codeSnippet: 'result = eval(request.json["expression"])',
     notes: 'Replacing with ast.literal_eval.', firstDetectedAt: '2026-03-10T09:15:00Z',
-    aiAnalysis: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
+    aiAnalysis: null, analysisMetadata: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
   },
   {
     id: 'fb-002', scanId: 'scan-006', scanTargetId: 'st-002',
@@ -352,7 +352,7 @@ const backendFindings: FindingRow[] = [
     filePath: 'api/auth/callback.py', startLine: 32, endLine: 34,
     codeSnippet: 'return redirect(request.args.get("next", "/"))',
     notes: '', firstDetectedAt: '2026-03-10T09:15:00Z',
-    aiAnalysis: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
+    aiAnalysis: null, analysisMetadata: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
   },
   {
     id: 'fb-003', scanId: 'scan-006', scanTargetId: 'st-002',
@@ -362,7 +362,7 @@ const backendFindings: FindingRow[] = [
     filePath: 'api/app.py', startLine: 89, endLine: 89,
     codeSnippet: 'app.run(debug=True, host="0.0.0.0")',
     notes: '', firstDetectedAt: '2026-03-10T09:15:00Z',
-    aiAnalysis: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
+    aiAnalysis: null, analysisMetadata: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
   },
   {
     id: 'fb-004', scanId: 'scan-006', scanTargetId: 'st-002',
@@ -372,7 +372,7 @@ const backendFindings: FindingRow[] = [
     filePath: 'api/auth/login.py', startLine: 15, endLine: 22,
     codeSnippet: '@app.route("/login", methods=["POST"])',
     notes: 'Will add rate limiting with Redis in Q2.', firstDetectedAt: '2026-03-10T09:15:00Z',
-    aiAnalysis: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
+    aiAnalysis: null, analysisMetadata: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
   },
   {
     id: 'fb-005', scanId: 'scan-006', scanTargetId: 'st-002',
@@ -382,7 +382,7 @@ const backendFindings: FindingRow[] = [
     filePath: 'api/auth/utils.py', startLine: 8, endLine: 8,
     codeSnippet: 'from flask_login import _user_context_processor',
     notes: '', firstDetectedAt: '2026-03-13T11:00:00Z',
-    aiAnalysis: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
+    aiAnalysis: null, analysisMetadata: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
   },
 ];
 
@@ -397,7 +397,7 @@ const infraFindings: FindingRow[] = [
     filePath: 'iam/policies.tf', startLine: 12, endLine: 18,
     codeSnippet: '"Action": "*"',
     notes: '', firstDetectedAt: '2026-03-09T16:00:00Z',
-    aiAnalysis: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
+    aiAnalysis: null, analysisMetadata: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
   },
   {
     id: 'fi-002', scanId: 'scan-005', scanTargetId: 'st-003',
@@ -407,7 +407,7 @@ const infraFindings: FindingRow[] = [
     filePath: 'monitoring/logs.yaml', startLine: 8, endLine: 14,
     codeSnippet: 'Type: AWS::Logs::LogGroup',
     notes: '', firstDetectedAt: '2026-03-09T16:00:00Z',
-    aiAnalysis: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
+    aiAnalysis: null, analysisMetadata: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
   },
   {
     id: 'fi-003', scanId: 'scan-005', scanTargetId: 'st-003',
@@ -417,7 +417,7 @@ const infraFindings: FindingRow[] = [
     filePath: 'main.tf', startLine: 1, endLine: 5,
     codeSnippet: 'resource "aws_vpc" "main" {',
     notes: '', firstDetectedAt: '2026-03-09T16:00:00Z',
-    aiAnalysis: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
+    aiAnalysis: null, analysisMetadata: null, suppression: null, isCurrentlySuppressed: false, suppressionSource: null,
   },
 ];
 

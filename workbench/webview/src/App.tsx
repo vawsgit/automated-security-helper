@@ -18,6 +18,13 @@ type ViewState =
   | 'scanHistory' | 'scanDetail' | 'scanProgress' | 'empty'
   | 'suppressionManager';
 
+export interface AnalysisUIState {
+  status: 'analyzing' | 'error';
+  message: string;
+  toolName?: string;
+  errorType?: string;
+}
+
 interface AppState {
   context: 'sidebar' | 'editorPanel' | 'sink' | 'unknown';
   view: ViewState;
@@ -50,9 +57,11 @@ interface AppState {
   detectedProvider: 'bedrock' | 'anthropic-api' | 'none';
   aiTestStatus: 'idle' | 'testing' | 'success' | 'error';
   aiTestResult: { success: boolean; model?: string; latencyMs: number; error?: { type: string; message: string } } | null;
+  // AI Analysis (Spec 022)
+  analysisStates: Record<string, AnalysisUIState>;
 }
 
-type AppAction =
+export type AppAction =
   | { type: 'MESSAGE'; payload: ExtToWebviewMessage }
   | { type: 'NAVIGATE'; view: ViewState }
   | { type: 'SELECT_FINDING'; findingId: string }
@@ -72,6 +81,7 @@ type AppAction =
   | { type: 'START_ADD_SUPPRESSION' }
   | { type: 'CANCEL_ADD_SUPPRESSION' }
   | { type: 'SET_AI_TEST_STATUS'; status: 'testing' }
+  | { type: 'DISMISS_ANALYSIS_ERROR'; findingId: string }
   | { type: 'BACK' }
   | { type: 'BACK_TO_LIST' };
 
@@ -83,7 +93,7 @@ function recomputeSummary(findings: FindingRow[]): DispositionSummary {
   return { total: findings.length, counts };
 }
 
-const initialState: AppState = {
+export const initialState: AppState = {
   context: 'unknown',
   view: 'loading',
   viewHistory: [],
@@ -115,9 +125,12 @@ const initialState: AppState = {
   detectedProvider: 'none',
   aiTestStatus: 'idle',
   aiTestResult: null,
+  // AI Analysis (Spec 022)
+  analysisStates: {},
 };
 
-function reducer(state: AppState, action: AppAction): AppState {
+/** @internal Exported for testing only */
+export function reducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
     case 'MESSAGE': {
       const msg = action.payload;
@@ -213,18 +226,37 @@ function reducer(state: AppState, action: AppAction): AppState {
           };
         case 'aiAnalysisResult': {
           const updateAnalysis = (list: FindingRow[]) =>
-            list.map(f => f.id === msg.payload.findingId ? { ...f, aiAnalysis: msg.payload.analysis } : f);
+            list.map(f => f.id === msg.payload.findingId ? { ...f, aiAnalysis: msg.payload.analysis, analysisMetadata: msg.payload.metadata } : f);
           const updatedSelected = state.selectedFinding?.id === msg.payload.findingId
-            ? { ...state.selectedFinding, aiAnalysis: msg.payload.analysis }
+            ? { ...state.selectedFinding, aiAnalysis: msg.payload.analysis, analysisMetadata: msg.payload.metadata }
             : state.selectedFinding;
-          return { ...state, findings: updateAnalysis(state.findings), currentFindings: updateAnalysis(state.currentFindings), selectedFinding: updatedSelected };
+          const { [msg.payload.findingId]: _removed, ...restStates } = state.analysisStates;
+          return { ...state, findings: updateAnalysis(state.findings), currentFindings: updateAnalysis(state.currentFindings), selectedFinding: updatedSelected, analysisStates: restStates };
         }
         case 'aiAnalysisStarted':
+          return {
+            ...state,
+            analysisStates: {
+              ...state.analysisStates,
+              [msg.payload.findingId]: { status: 'analyzing', message: 'Starting analysis\u2026' },
+            },
+          };
         case 'aiAnalysisProgress':
+          return {
+            ...state,
+            analysisStates: {
+              ...state.analysisStates,
+              [msg.payload.findingId]: { status: 'analyzing', message: msg.payload.message, toolName: msg.payload.toolName },
+            },
+          };
         case 'aiAnalysisError':
-          // These events are acknowledged but visual progress/error display
-          // in the finding detail view is handled by a separate UI spec.
-          return state;
+          return {
+            ...state,
+            analysisStates: {
+              ...state.analysisStates,
+              [msg.payload.findingId]: { status: 'error', message: msg.payload.message, errorType: msg.payload.errorType },
+            },
+          };
         default:
           return state;
       }
@@ -319,6 +351,10 @@ function reducer(state: AppState, action: AppAction): AppState {
       return { ...state, addingNewSuppression: false };
     case 'SET_AI_TEST_STATUS':
       return { ...state, aiTestStatus: action.status };
+    case 'DISMISS_ANALYSIS_ERROR': {
+      const { [action.findingId]: _dismissed, ...remaining } = state.analysisStates;
+      return { ...state, analysisStates: remaining };
+    }
     case 'BACK': {
       const history = [...state.viewHistory];
       const prev = history.pop() ?? 'dashboard';
@@ -436,6 +472,7 @@ function EditorPanel({ state, dispatch }: { state: AppState; dispatch: React.Dis
           <FindingDetailView
             finding={state.selectedFinding}
             findings={activeFindings}
+            analysisState={state.analysisStates[state.selectedFinding.id]}
             onBack={() => dispatch({ type: 'BACK' })}
             onNavigateDashboard={navigateDashboard}
             onNavigateFindings={navigateFindings}
@@ -445,6 +482,9 @@ function EditorPanel({ state, dispatch }: { state: AppState; dispatch: React.Dis
             }
             onSetNotes={(findingId, notes) =>
               dispatch({ type: 'SET_NOTES', findingId, notes })
+            }
+            onDismissAnalysisError={(findingId) =>
+              dispatch({ type: 'DISMISS_ANALYSIS_ERROR', findingId })
             }
             suppressionFormFindingId={state.suppressionFormFindingId}
             suppressionPending={state.suppressionPending}

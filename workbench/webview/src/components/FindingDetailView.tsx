@@ -1,5 +1,10 @@
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from '@/components/ui/alert';
 import { AppBreadcrumb } from './AppBreadcrumb';
 import { SeverityBadge } from './SeverityBadge';
 import { DispositionBadge } from './DispositionBadge';
@@ -7,22 +12,38 @@ import { TriageControls } from './TriageControls';
 import { TriageNotes } from './TriageNotes';
 import { CodeBlock } from './CodeBlock';
 import { AiAnalysisPanel } from './AiAnalysisPanel';
+import { AnalysisProgress } from './AnalysisProgress';
 import { SuppressionPanel } from './SuppressionPanel';
 import { FindingNavigation } from './FindingNavigation';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, Sparkles } from 'lucide-react';
 import { SuppressionForm } from './SuppressionForm';
 import { postMessage } from '../hooks/useVSCodeAPI';
 import type { FindingRow, Disposition, SuppressionInput } from '../types/types';
+import type { AnalysisUIState } from '../App';
+
+const ERROR_GUIDANCE: Record<string, string> = {
+  credentials_missing: 'AI provider credentials are not configured. Open Settings and configure ashWorkbench.llm.provider and credentials.',
+  auth_failed: 'Authentication failed. Check your API key or AWS credentials in Settings.',
+  model_unavailable: 'The configured model is not available. Check ashWorkbench.llm.modelId in Settings.',
+  budget_exceeded: 'Analysis stopped: cost reached the budget limit. Increase ashWorkbench.llm.maxBudgetUsd in Settings to allow more.',
+  max_turns_exceeded: 'Analysis stopped after maximum reasoning iterations without completing. Increase ashWorkbench.llm.maxTurns in Settings and retry.',
+  network_error: 'Network error connecting to the AI provider. Check your connection and retry.',
+  cancelled: 'Analysis cancelled.',
+  format_error: 'The AI agent did not return a valid analysis format. Try again.',
+  unknown: 'An unexpected error occurred during analysis. Check the ASH Workbench output channel for details.',
+};
 
 interface FindingDetailViewProps {
   finding: FindingRow;
   findings: FindingRow[];
+  analysisState?: AnalysisUIState;
   onBack: () => void;
   onNavigateDashboard: () => void;
   onNavigateFindings: () => void;
   onNavigate: (findingId: string) => void;
   onSetDisposition: (findingId: string, disposition: Disposition) => void;
   onSetNotes: (findingId: string, notes: string) => void;
+  onDismissAnalysisError?: (findingId: string) => void;
   suppressionFormFindingId?: string | null;
   suppressionPending?: boolean;
   onOpenSuppressionForm?: (findingId: string) => void;
@@ -39,11 +60,13 @@ function formatDate(iso: string): string {
 export function FindingDetailView({
   finding,
   findings,
+  analysisState,
   onNavigateDashboard,
   onNavigateFindings,
   onNavigate,
   onSetDisposition,
   onSetNotes,
+  onDismissAnalysisError,
   suppressionFormFindingId,
   suppressionPending,
   onOpenSuppressionForm,
@@ -54,6 +77,14 @@ export function FindingDetailView({
   for (let i = finding.startLine; i <= finding.endLine; i++) {
     highlightLines.push(i);
   }
+
+  const triggerAnalysis = () => {
+    postMessage({ type: 'analyzeFinding', payload: { findingId: finding.id } });
+  };
+
+  const cancelAnalysis = () => {
+    postMessage({ type: 'cancelAiAnalysis', payload: { findingId: finding.id } });
+  };
 
   return (
     <div className="p-4 max-w-4xl mx-auto space-y-4">
@@ -157,12 +188,63 @@ export function FindingDetailView({
       </div>
 
       {/* Section 5: AI Analysis */}
-      {finding.aiAnalysis && (
-        <>
-          <Separator />
-          <AiAnalysisPanel analysis={finding.aiAnalysis} />
-        </>
-      )}
+      <Separator />
+      <div className="space-y-3">
+        <h3 className="text-xs font-semibold uppercase tracking-wide opacity-70">AI Analysis</h3>
+
+        {/* Error state (US5) */}
+        {analysisState?.status === 'error' && (
+          <Alert variant="destructive">
+            <AlertTitle>{analysisState.message}</AlertTitle>
+            <AlertDescription>
+              <p className="mb-2">{ERROR_GUIDANCE[analysisState.errorType ?? 'unknown'] ?? ERROR_GUIDANCE.unknown}</p>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={triggerAnalysis}>
+                  Retry
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onDismissAnalysisError?.(finding.id)}
+                >
+                  Dismiss
+                </Button>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Analyzing state (US2/US3) */}
+        {analysisState?.status === 'analyzing' && (
+          <AnalysisProgress
+            message={analysisState.message}
+            toolName={analysisState.toolName}
+            onCancel={cancelAnalysis}
+          />
+        )}
+
+        {/* Analyze button (US1) — show when no analysis and no active state */}
+        {!finding.aiAnalysis && !analysisState && (
+          <Button variant="outline" size="sm" onClick={triggerAnalysis}>
+            <Sparkles className="h-3.5 w-3.5 mr-1.5" />
+            Analyze with AI
+          </Button>
+        )}
+
+        {/* Analysis results + Re-analyze button (US1) */}
+        {finding.aiAnalysis && !analysisState && (
+          <>
+            <AiAnalysisPanel
+              analysis={finding.aiAnalysis}
+              metadata={finding.analysisMetadata}
+            />
+            <Button variant="outline" size="sm" onClick={triggerAnalysis}>
+              <Sparkles className="h-3.5 w-3.5 mr-1.5" />
+              Re-analyze
+            </Button>
+          </>
+        )}
+      </div>
 
       {/* Section 6: Suppression */}
       {(finding.disposition === 'SUPPRESS' || finding.isCurrentlySuppressed) && (

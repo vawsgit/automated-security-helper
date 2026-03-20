@@ -42,6 +42,7 @@ function makeFinding(overrides: Partial<FindingRow> = {}): FindingRow {
     notes: '',
     firstDetectedAt: '2025-01-01T00:00:00Z',
     aiAnalysis: null,
+    analysisMetadata: null,
     suppression: null,
     isCurrentlySuppressed: false,
     suppressionSource: null,

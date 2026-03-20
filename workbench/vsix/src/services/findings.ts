@@ -5,6 +5,10 @@ import { mapFindingToRow, mapScanToSummary, mapScanTargetToView } from '../model
 import type { AshYamlService } from './ashYaml';
 import type { ScanRootService } from './scanRoot';
 
+export type RelatedMatchReason = 'same_rule' | 'same_scanner' | 'same_file';
+
+export type RelatedFinding = FindingRow & { matchReason: RelatedMatchReason };
+
 export interface CurrentFindingsResult {
   findings: FindingRow[];
   summary: SuppressionSummary;
@@ -282,6 +286,41 @@ export class FindingsService {
         }};
       }
       return row;
+    });
+  }
+
+  async getRelatedFindings(findingId: string): Promise<RelatedFinding[]> {
+    const target = await this.db.finding.findUnique({
+      where: { id: findingId },
+    });
+    if (!target) {
+      return [];
+    }
+
+    const related = await this.db.finding.findMany({
+      where: {
+        scanId: target.scanId,
+        id: { not: findingId },
+        OR: [
+          { ruleId: target.ruleId },
+          { scanner: target.scanner },
+          { file: target.file },
+        ],
+      },
+      take: 25,
+    });
+
+    return related.map(f => {
+      const row = mapFindingToRow(f);
+      let matchReason: RelatedMatchReason;
+      if (f.ruleId === target.ruleId) {
+        matchReason = 'same_rule';
+      } else if (f.scanner === target.scanner) {
+        matchReason = 'same_scanner';
+      } else {
+        matchReason = 'same_file';
+      }
+      return { ...row, matchReason };
     });
   }
 }

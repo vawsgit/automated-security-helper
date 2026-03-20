@@ -20,6 +20,7 @@ const baseFinding: FindingRow = {
   notes: 'Known test credential',
   firstDetectedAt: '2025-01-15T10:00:00Z',
   aiAnalysis: null,
+  analysisMetadata: null,
   suppression: null,
   isCurrentlySuppressed: false,
   suppressionSource: null,

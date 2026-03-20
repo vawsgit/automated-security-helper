@@ -43,10 +43,10 @@ export function serializeSuppressionEntry(s: AshSuppression, indent: number = 4)
     lines.push(`${fieldPad}rule_id: "${s.rule_id}"`);
   }
   lines.push(`${fieldPad}reason: "${s.reason}"`);
-  if (s.line_start != null) {
+  if (s.line_start !== null && s.line_start !== undefined) {
     lines.push(`${fieldPad}line_start: ${s.line_start}`);
   }
-  if (s.line_end != null) {
+  if (s.line_end !== null && s.line_end !== undefined) {
     lines.push(`${fieldPad}line_end: ${s.line_end}`);
   }
   if (s.expiration) {
@@ -113,10 +113,10 @@ export function reserializeSuppressionsSection(
       entry.rule_id = s.rule_id;
     }
     entry.reason = s.reason;
-    if (s.line_start != null) {
+    if (s.line_start !== null && s.line_start !== undefined) {
       entry.line_start = s.line_start;
     }
-    if (s.line_end != null) {
+    if (s.line_end !== null && s.line_end !== undefined) {
       entry.line_end = s.line_end;
     }
     if (s.expiration) {

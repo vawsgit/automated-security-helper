@@ -9,6 +9,8 @@ export interface AnalyzeParams {
   maxTurns: number;
   toolMode: 'read-only' | 'full';
   abortSignal: AbortSignal;
+  /** Optional MCP servers to attach to the agent query (e.g., finding-analysis tools). */
+  mcpServers?: Record<string, Record<string, unknown>>;
 }
 
 // --- Event Types ---

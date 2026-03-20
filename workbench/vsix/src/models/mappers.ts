@@ -1,5 +1,5 @@
 import type { Scan, Finding, ScanTarget as PrismaScanTarget } from '@prisma/client';
-import type { ScanSummary, FindingRow, ScanTarget, Severity, Disposition, DispositionSummary, AshSuppression, AiAnalysis, StoredAiAnalysis } from './types';
+import type { ScanSummary, FindingRow, ScanTarget, Severity, Disposition, DispositionSummary, AshSuppression, AiAnalysis, AnalysisMetadata, StoredAiAnalysis } from './types';
 
 const SEVERITY_KEYS: Severity[] = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO'];
 
@@ -48,24 +48,24 @@ export function generateYamlEntry(s: AshSuppression): string {
   const lines: string[] = [`- path: "${s.path}"`];
   if (s.rule_id) { lines.push(`  rule_id: "${s.rule_id}"`); }
   lines.push(`  reason: "${s.reason}"`);
-  if (s.line_start != null) { lines.push(`  line_start: ${s.line_start}`); }
-  if (s.line_end != null) { lines.push(`  line_end: ${s.line_end}`); }
+  if (s.line_start !== null && s.line_start !== undefined) { lines.push(`  line_start: ${s.line_start}`); }
+  if (s.line_end !== null && s.line_end !== undefined) { lines.push(`  line_end: ${s.line_end}`); }
   if (s.expiration) { lines.push(`  expiration: "${s.expiration}"`); }
   return lines.join('\n');
 }
 
-function parseStoredAiAnalysis(json: unknown): AiAnalysis | null {
+function parseStoredAiAnalysis(json: unknown): { analysis: AiAnalysis | null; metadata: AnalysisMetadata | null } {
   if (!json || typeof json !== 'object') {
-    return null;
+    return { analysis: null, metadata: null };
   }
   const stored = json as StoredAiAnalysis;
-  if (stored.analysis && typeof stored.analysis === 'object') {
-    return stored.analysis;
-  }
-  return null;
+  const analysis = stored.analysis && typeof stored.analysis === 'object' ? stored.analysis : null;
+  const metadata = stored.metadata && typeof stored.metadata === 'object' ? stored.metadata : null;
+  return { analysis, metadata };
 }
 
 export function mapFindingToRow(finding: Finding, suppression?: AshSuppression): FindingRow {
+  const { analysis: aiAnalysis, metadata: analysisMetadata } = parseStoredAiAnalysis(finding.aiAnalysis);
   return {
     id: finding.id,
     scanId: finding.scanId,
@@ -82,7 +82,8 @@ export function mapFindingToRow(finding: Finding, suppression?: AshSuppression):
     codeSnippet: finding.snippet ?? '',
     notes: finding.notes ?? '',
     firstDetectedAt: new Date().toISOString(),
-    aiAnalysis: parseStoredAiAnalysis(finding.aiAnalysis),
+    aiAnalysis,
+    analysisMetadata,
     suppression: suppression ? {
       justification: suppression.reason,
       yamlEntry: generateYamlEntry(suppression),

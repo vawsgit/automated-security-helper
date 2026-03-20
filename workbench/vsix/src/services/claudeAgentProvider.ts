@@ -381,8 +381,9 @@ export class ClaudeAgentProvider implements AiProvider {
     try {
       const { query } = await import('@anthropic-ai/claude-agent-sdk');
 
-      const readOnlyTools = ['Read', 'Glob', 'Grep'];
-      const fullTools = ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep'];
+      const mcpToolNames = ['get_finding_context', 'list_related_findings'];
+      const readOnlyTools = ['Read', 'Glob', 'Grep', ...mcpToolNames];
+      const fullTools = ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep', ...mcpToolNames];
       const allowedTools = params.toolMode === 'full' ? fullTools : readOnlyTools;
 
       const abortController = new AbortController();
@@ -398,6 +399,10 @@ export class ClaudeAgentProvider implements AiProvider {
         allowedTools,
         outputFormat: { type: 'json_schema', schema: AI_ANALYSIS_SCHEMA },
       };
+
+      if (params.mcpServers) {
+        options.mcpServers = params.mcpServers;
+      }
 
       const messages = query({
         prompt: buildSystemPrompt(params),

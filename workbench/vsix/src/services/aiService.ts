@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import type { AiProvider, ConnectionTestResult, AnalysisEvent } from './aiProvider';
 import type { FindingsService } from './findings';
+import { createFindingMcpServer } from './mcpTools';
 
 const MAX_CONCURRENT_ANALYSES = 5;
 
@@ -109,6 +110,16 @@ export class AiService implements vscode.Disposable {
         return;
       }
 
+      // Create MCP server with finding-analysis tools
+      let mcpServers: Record<string, Record<string, unknown>> | undefined;
+      try {
+        const server = await createFindingMcpServer(this.findingsService, findingId, this.workspaceRoot);
+        mcpServers = { 'ash-finding-tools': server };
+      } catch (err) {
+        this.log(`Failed to create MCP server for finding tools: ${err instanceof Error ? err.message : String(err)}`);
+        // Continue without MCP tools — analysis can still use built-in tools
+      }
+
       const params = {
         finding,
         workspaceRoot: this.workspaceRoot,
@@ -116,6 +127,7 @@ export class AiService implements vscode.Disposable {
         maxTurns: config.maxTurns,
         toolMode: config.toolMode,
         abortSignal: abortController.signal,
+        mcpServers,
       };
 
       // Iterate the provider's async generator
