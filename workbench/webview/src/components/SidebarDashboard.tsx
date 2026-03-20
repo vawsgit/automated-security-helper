@@ -2,8 +2,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { severityColor, dispositionColor } from '@/lib/theme-colors';
+import { getAiErrorMessage } from '@/lib/ai-errors';
 import { postMessage } from '../hooks/useVSCodeAPI';
-import { Play, List, FolderOpen, LayoutDashboard, Settings, Shield } from 'lucide-react';
+import { Play, List, FolderOpen, LayoutDashboard, Settings, Shield, Cpu, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import type { ScanSummary, ScanTarget, DispositionSummary, FindingRow, Severity, Disposition, SuppressionSummary, AshYamlConfigSummary } from '../types/types';
 
 interface SidebarDashboardProps {
@@ -14,9 +15,14 @@ interface SidebarDashboardProps {
   suppressionSummary?: SuppressionSummary;
   lastScannedAt?: string;
   ashYamlConfig?: AshYamlConfigSummary;
+  claudeSettingsDetected: boolean;
+  detectedProvider: 'bedrock' | 'anthropic-api' | 'none';
+  aiTestStatus: 'idle' | 'testing' | 'success' | 'error';
+  aiTestResult: { success: boolean; model?: string; latencyMs: number; error?: { type: string; message: string } } | null;
+  onTestConnection: () => void;
 }
 
-export function SidebarDashboard({ scans, summary, scanTargets, currentFindings, suppressionSummary, lastScannedAt, ashYamlConfig }: SidebarDashboardProps) {
+export function SidebarDashboard({ scans, summary, scanTargets, currentFindings, suppressionSummary, lastScannedAt, ashYamlConfig, claudeSettingsDetected, detectedProvider, aiTestStatus, aiTestResult, onTestConnection }: SidebarDashboardProps) {
   const activeScan = scans.find(s => s.status === 'RUNNING');
   const latestScan = scans.find(s => s.status === 'COMPLETED');
   const activeTotal = suppressionSummary?.active ?? summary.total;
@@ -156,6 +162,57 @@ export function SidebarDashboard({ scans, summary, scanTargets, currentFindings,
           )}
         </>
       )}
+
+      {/* AI Analysis */}
+      <Separator />
+      <div>
+        <h3 className="text-xs font-semibold mb-2 uppercase tracking-wide opacity-70">AI Analysis</h3>
+        {claudeSettingsDetected ? (
+          <div className="space-y-2">
+            <p className="text-xs opacity-60">
+              Claude Code detected ({detectedProvider === 'bedrock' ? 'AWS Bedrock' : 'Anthropic API'})
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full text-xs"
+              disabled={aiTestStatus === 'testing'}
+              onClick={onTestConnection}
+            >
+              {aiTestStatus === 'testing' ? (
+                <><Loader2 className="h-3 w-3 mr-1.5 animate-spin" />Testing...</>
+              ) : (
+                <><Cpu className="h-3 w-3 mr-1.5" />Test AI Connection</>
+              )}
+            </Button>
+            {aiTestStatus === 'success' && aiTestResult && (
+              <div className="flex items-start gap-1.5 text-xs text-green-700 dark:text-green-400">
+                <CheckCircle2 className="h-3 w-3 mt-0.5 shrink-0" />
+                <span>Connected — {aiTestResult.model} ({aiTestResult.latencyMs}ms)</span>
+              </div>
+            )}
+            {aiTestStatus === 'error' && aiTestResult?.error && (
+              <div className="flex items-start gap-1.5 text-xs text-red-700 dark:text-red-400">
+                <XCircle className="h-3 w-3 mt-0.5 shrink-0" />
+                <span>{getAiErrorMessage(aiTestResult.error.type)}</span>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-1.5">
+            <p className="text-xs opacity-60">No AI provider configured.</p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full text-xs"
+              onClick={() => postMessage({ type: 'openSettings' })}
+            >
+              <Settings className="h-3 w-3 mr-1.5" />
+              Configure AI Provider
+            </Button>
+          </div>
+        )}
+      </div>
 
       {/* Severity breakdown — active findings only */}
       {latestScan && (() => {

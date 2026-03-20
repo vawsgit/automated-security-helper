@@ -5,7 +5,7 @@ export type ExtToWebviewMessage =
   | { type: 'init'; payload: { context: 'sidebar' } }
   | { type: 'init'; payload: { context: 'editorPanel'; scanId: string } }
   | { type: 'init'; payload: { context: 'sink' } }
-  | { type: 'stateUpdate'; payload: { scans: ScanSummary[]; summary: DispositionSummary; scanTargets: ScanTarget[]; scanRoot: string } }
+  | { type: 'stateUpdate'; payload: { scans: ScanSummary[]; summary: DispositionSummary; scanTargets: ScanTarget[]; scanRoot: string; claudeSettingsDetected: boolean; detectedProvider: 'bedrock' | 'anthropic-api' | 'none' } }
   | { type: 'findingsUpdate'; payload: { scanId: string; findings: FindingRow[] } }
   | { type: 'findingDetail'; payload: FindingRow }
   | { type: 'dispositionUpdated'; payload: { findingId: string; disposition: Disposition } }
