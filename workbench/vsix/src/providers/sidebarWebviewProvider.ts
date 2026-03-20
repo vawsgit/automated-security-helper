@@ -12,6 +12,7 @@ import type { AshYamlConfigSummary } from '../models/types';
 import type { PrismaClient } from '@prisma/client';
 import { AdminService } from '../services/admin';
 import type { AiService } from '../services/aiService';
+import type { ClaudeSettingsDetection } from '../services/claudeSettingsDetector';
 
 export class SidebarWebviewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'ashWorkbench.mainView';
@@ -24,6 +25,7 @@ export class SidebarWebviewProvider implements vscode.WebviewViewProvider {
   private scanRootService?: ScanRootService;
   private ashYamlService?: AshYamlService;
   private aiService?: AiService;
+  private claudeSettingsDetection?: ClaudeSettingsDetection;
   private adminDeps?: { db: PrismaClient; extensionVersion: string; storagePath: string };
 
   constructor(
@@ -64,6 +66,14 @@ export class SidebarWebviewProvider implements vscode.WebviewViewProvider {
 
   setAiService(service: AiService): void {
     this.aiService = service;
+  }
+
+  setClaudeSettingsDetection(detection: ClaudeSettingsDetection): void {
+    this.claudeSettingsDetection = detection;
+  }
+
+  getClaudeSettingsDetection(): ClaudeSettingsDetection | undefined {
+    return this.claudeSettingsDetection;
   }
 
   resolveWebviewView(

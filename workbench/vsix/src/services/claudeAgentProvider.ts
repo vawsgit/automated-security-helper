@@ -259,6 +259,40 @@ function extractProgressFromMessage(message: SDKMessage, toolsUsed: Set<string>)
   return null;
 }
 
+/**
+ * Builds shared SDK query options from the merged AI service configuration.
+ * Handles: settingSources (base layer), model override, and env overrides.
+ * Does NOT include per-call options (abortController, maxTurns, maxBudgetUsd, allowedTools).
+ */
+export function buildQueryOptions(config: AiServiceConfig): Record<string, unknown> {
+  const options: Record<string, unknown> = {};
+
+  if (config.useClaudeSettings) {
+    options.settingSources = ['user'];
+  }
+
+  if (config.modelId) {
+    options.model = config.modelId;
+  }
+
+  const envOverrides: Record<string, string> = {};
+  if (config.region) {
+    envOverrides.AWS_REGION = config.region;
+  }
+  if (config.provider === 'bedrock') {
+    envOverrides.CLAUDE_CODE_USE_BEDROCK = '1';
+  }
+  if (config.awsProfile) {
+    envOverrides.AWS_PROFILE = config.awsProfile;
+  }
+
+  if (Object.keys(envOverrides).length > 0) {
+    options.env = { ...process.env, ...envOverrides };
+  }
+
+  return options;
+}
+
 export class ClaudeAgentProvider implements AiProvider {
   constructor(private readonly config: AiServiceConfig) {}
 
@@ -271,19 +305,12 @@ export class ClaudeAgentProvider implements AiProvider {
       const timeout = setTimeout(() => abortController.abort(), 10_000);
 
       const options: Record<string, unknown> = {
+        ...buildQueryOptions(this.config),
         abortController,
         maxTurns: 1,
         permissionMode: 'dontAsk',
         allowedTools: [] as string[],
       };
-
-      if (this.config.modelId) {
-        options.model = this.config.modelId;
-      }
-
-      if (this.config.useClaudeSettings) {
-        options.settingSources = ['user'];
-      }
 
       const messages = query({
         prompt: 'Respond with exactly: "Connection test successful."',
@@ -362,6 +389,7 @@ export class ClaudeAgentProvider implements AiProvider {
       params.abortSignal.addEventListener('abort', () => abortController.abort(), { once: true });
 
       const options: Record<string, unknown> = {
+        ...buildQueryOptions(this.config),
         abortController,
         cwd: params.workspaceRoot,
         maxTurns: params.maxTurns,
@@ -370,14 +398,6 @@ export class ClaudeAgentProvider implements AiProvider {
         allowedTools,
         outputFormat: { type: 'json_schema', schema: AI_ANALYSIS_SCHEMA },
       };
-
-      if (this.config.modelId) {
-        options.model = this.config.modelId;
-      }
-
-      if (this.config.useClaudeSettings) {
-        options.settingSources = ['user'];
-      }
 
       const messages = query({
         prompt: buildSystemPrompt(params),
