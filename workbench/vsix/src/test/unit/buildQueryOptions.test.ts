@@ -13,6 +13,7 @@ function makeConfig(overrides: Partial<AiServiceConfig> = {}): AiServiceConfig {
     maxBudgetUsd: 1.0,
     maxTurns: 15,
     toolMode: 'read-only',
+    batchConsecutiveFailureLimit: 3,
     ...overrides,
   };
 }

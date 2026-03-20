@@ -25,6 +25,17 @@ export interface AnalysisUIState {
   errorType?: string;
 }
 
+export interface BatchAnalysisUIState {
+  status: 'running' | 'completed' | 'cancelled' | 'consecutive-failures' | 'error';
+  scanId: string;
+  totalFindings: number;
+  currentIndex: number;
+  currentFindingId?: string;
+  analyzedCount: number;
+  failedCount: number;
+  skippedCount: number;
+}
+
 interface AppState {
   context: 'sidebar' | 'editorPanel' | 'sink' | 'unknown';
   view: ViewState;
@@ -59,6 +70,8 @@ interface AppState {
   aiTestResult: { success: boolean; model?: string; latencyMs: number; error?: { type: string; message: string } } | null;
   // AI Analysis (Spec 022)
   analysisStates: Record<string, AnalysisUIState>;
+  // Batch Analysis (Spec 023)
+  batchAnalysisState: BatchAnalysisUIState | null;
 }
 
 export type AppAction =
@@ -127,6 +140,8 @@ export const initialState: AppState = {
   aiTestResult: null,
   // AI Analysis (Spec 022)
   analysisStates: {},
+  // Batch Analysis (Spec 023)
+  batchAnalysisState: null,
 };
 
 /** @internal Exported for testing only */
@@ -257,16 +272,50 @@ export function reducer(state: AppState, action: AppAction): AppState {
               [msg.payload.findingId]: { status: 'error', message: msg.payload.message, errorType: msg.payload.errorType },
             },
           };
+        // Batch Analysis (Spec 023)
+        case 'batchAnalysisStarted':
+          return {
+            ...state,
+            batchAnalysisState: {
+              status: 'running',
+              scanId: msg.payload.scanId,
+              totalFindings: msg.payload.totalFindings,
+              currentIndex: 0,
+              analyzedCount: 0,
+              failedCount: 0,
+              skippedCount: 0,
+            },
+          };
+        case 'batchAnalysisProgress':
+          return {
+            ...state,
+            batchAnalysisState: state.batchAnalysisState
+              ? { ...state.batchAnalysisState, currentIndex: msg.payload.currentIndex, currentFindingId: msg.payload.currentFindingId }
+              : state.batchAnalysisState,
+          };
+        case 'batchAnalysisComplete':
+          return {
+            ...state,
+            batchAnalysisState: state.batchAnalysisState
+              ? { ...state.batchAnalysisState, status: msg.payload.status, analyzedCount: msg.payload.analyzedCount, failedCount: msg.payload.failedCount, skippedCount: msg.payload.skippedCount }
+              : state.batchAnalysisState,
+          };
         default:
           return state;
       }
     }
-    case 'NAVIGATE':
+    case 'NAVIGATE': {
+      // Clear batch analysis state when navigating away from findings
+      const clearBatch = state.view === 'findingList' && action.view !== 'findingList' && action.view !== 'findingDetail'
+        ? { batchAnalysisState: null }
+        : {};
       return {
         ...state,
         viewHistory: [...state.viewHistory, state.view],
         view: action.view,
+        ...clearBatch,
       };
+    }
     case 'SELECT_FINDING': {
       const finding = state.findings.find(f => f.id === action.findingId);
       if (finding) {
@@ -460,6 +509,18 @@ function EditorPanel({ state, dispatch }: { state: AppState; dispatch: React.Dis
             }
             onNavigateDashboard={navigateDashboard}
             onClearTarget={() => dispatch({ type: 'CLEAR_SCAN_TARGET' })}
+            batchAnalysisState={state.batchAnalysisState}
+            analysisStates={state.analysisStates}
+            onAnalyzeAll={() => {
+              if (state.scanId) {
+                postMessage({ type: 'analyzeAllFindings', payload: { scanId: state.scanId } });
+              }
+            }}
+            onCancelBatch={() => {
+              if (state.scanId) {
+                postMessage({ type: 'cancelBatchAnalysis', payload: { scanId: state.scanId } });
+              }
+            }}
           />
         );
       }

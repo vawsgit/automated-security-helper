@@ -24,7 +24,11 @@ export type ExtToWebviewMessage =
   | { type: 'aiAnalysisProgress'; payload: { findingId: string; message: string; toolName?: string } }
   | { type: 'aiAnalysisResult'; payload: { findingId: string; analysis: AiAnalysis; metadata: AnalysisMetadata } }
   | { type: 'aiAnalysisError'; payload: { findingId: string; errorType: string; message: string } }
-  | { type: 'aiTestResult'; payload: { success: boolean; model?: string; latencyMs: number; error?: { type: string; message: string } } };
+  | { type: 'aiTestResult'; payload: { success: boolean; model?: string; latencyMs: number; error?: { type: string; message: string } } }
+  // Batch Analysis (Spec 023)
+  | { type: 'batchAnalysisStarted'; payload: { scanId: string; totalFindings: number; findingIds: string[] } }
+  | { type: 'batchAnalysisProgress'; payload: { scanId: string; currentIndex: number; totalFindings: number; currentFindingId: string } }
+  | { type: 'batchAnalysisComplete'; payload: { scanId: string; analyzedCount: number; failedCount: number; skippedCount: number; status: 'completed' | 'cancelled' | 'consecutive-failures' | 'error' } };
 
 // WebView -> Extension Host
 export type WebviewToExtMessage =
@@ -55,4 +59,7 @@ export type WebviewToExtMessage =
   // AI Analysis (Spec 018)
   | { type: 'testAiConnection' }
   | { type: 'analyzeFinding'; payload: { findingId: string } }
-  | { type: 'cancelAiAnalysis'; payload: { findingId: string } };
+  | { type: 'cancelAiAnalysis'; payload: { findingId: string } }
+  // Batch Analysis (Spec 023)
+  | { type: 'analyzeAllFindings'; payload: { scanId: string } }
+  | { type: 'cancelBatchAnalysis'; payload: { scanId: string } };

@@ -11,6 +11,8 @@ export interface AnalyzeParams {
   abortSignal: AbortSignal;
   /** Optional MCP servers to attach to the agent query (e.g., finding-analysis tools). */
   mcpServers?: Record<string, Record<string, unknown>>;
+  /** Session ID to resume for batch context (enables cross-finding analysis). */
+  resume?: string;
 }
 
 // --- Event Types ---
@@ -36,6 +38,8 @@ export interface AnalysisResultEvent {
   type: 'result';
   analysis: AiAnalysis;
   metadata: AnalysisMetadata;
+  /** SDK session ID for batch resumption (captured from SDK response). */
+  sessionId?: string;
 }
 
 export interface AnalysisErrorEvent {

@@ -189,6 +189,7 @@ function handleResultMessage(
           costUsd: result.total_cost_usd,
           toolsUsed: Array.from(toolsUsed),
         },
+        sessionId: result.session_id,
       };
     }
     return {
@@ -402,6 +403,10 @@ export class ClaudeAgentProvider implements AiProvider {
 
       if (params.mcpServers) {
         options.mcpServers = params.mcpServers;
+      }
+
+      if (params.resume) {
+        options.resume = params.resume;
       }
 
       const messages = query({

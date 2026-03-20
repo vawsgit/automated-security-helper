@@ -22,8 +22,10 @@ import {
   Circle,
   Clock,
   EyeOff,
+  Loader2,
   Minus,
   PlusCircle,
+  Sparkles,
   Wrench,
   X,
 } from 'lucide-react';
@@ -67,6 +69,7 @@ import { Label } from '@/components/ui/label';
 import { AppBreadcrumb } from './AppBreadcrumb';
 import { severityOrder } from '@/lib/theme-colors';
 import type { FindingRow, ScanTarget, Disposition } from '../types/types';
+import type { BatchAnalysisUIState, AnalysisUIState } from '../App';
 
 interface FindingsViewProps {
   findings: FindingRow[];
@@ -77,6 +80,10 @@ interface FindingsViewProps {
   onSetDisposition: (findingId: string, disposition: Disposition) => void;
   onNavigateDashboard: () => void;
   onClearTarget?: () => void;
+  batchAnalysisState?: BatchAnalysisUIState | null;
+  analysisStates?: Record<string, AnalysisUIState>;
+  onAnalyzeAll?: () => void;
+  onCancelBatch?: () => void;
 }
 
 const severityOptions = [
@@ -223,7 +230,7 @@ function FacetedFilter<TData, TValue>({
 
 // --- Main Component ---
 
-export function FindingsView({ findings, selectedTarget, showSuppressed, onToggleSuppressed, onSelectFinding, onSetDisposition, onNavigateDashboard, onClearTarget }: FindingsViewProps) {
+export function FindingsView({ findings, selectedTarget, showSuppressed, onToggleSuppressed, onSelectFinding, onSetDisposition, onNavigateDashboard, onClearTarget, batchAnalysisState, analysisStates, onAnalyzeAll, onCancelBatch }: FindingsViewProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [rowSelection, setRowSelection] = useState({});
@@ -403,6 +410,50 @@ export function FindingsView({ findings, selectedTarget, showSuppressed, onToggl
           </div>
         </div>
       </div>
+
+      {/* Batch Analysis Controls (Spec 023) */}
+      {onAnalyzeAll && (
+        <div className="flex items-center gap-3">
+          {(!batchAnalysisState || batchAnalysisState.status !== 'running') ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onAnalyzeAll}
+              disabled={
+                batchAnalysisState?.status === 'running' ||
+                findings.every(f => f.aiAnalysis !== null)
+              }
+            >
+              <Sparkles className="size-4 mr-1" />
+              Analyze All Findings
+            </Button>
+          ) : (
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 text-sm">
+                <Loader2 className="size-4 animate-spin" />
+                <span>
+                  Analyzing finding {batchAnalysisState.currentIndex} of {batchAnalysisState.totalFindings}...
+                </span>
+              </div>
+              {onCancelBatch && (
+                <Button variant="outline" size="sm" onClick={onCancelBatch}>
+                  Cancel
+                </Button>
+              )}
+            </div>
+          )}
+          {batchAnalysisState && batchAnalysisState.status !== 'running' && (
+            <span className="text-xs text-muted-foreground">
+              {batchAnalysisState.status === 'completed' && `Done: ${batchAnalysisState.analyzedCount} analyzed`}
+              {batchAnalysisState.status === 'cancelled' && `Cancelled: ${batchAnalysisState.analyzedCount} analyzed`}
+              {batchAnalysisState.status === 'consecutive-failures' && `Stopped: too many consecutive failures (${batchAnalysisState.failedCount} failed)`}
+              {batchAnalysisState.status === 'error' && 'Batch analysis error'}
+              {batchAnalysisState.failedCount > 0 && batchAnalysisState.status === 'completed' && `, ${batchAnalysisState.failedCount} failed`}
+              {batchAnalysisState.skippedCount > 0 && `, ${batchAnalysisState.skippedCount} skipped`}
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Filter toolbar */}
       <div className="flex items-center justify-between">

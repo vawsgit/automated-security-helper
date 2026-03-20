@@ -549,6 +549,64 @@ export class FindingsPanelManager {
         }
         break;
       }
+      case 'analyzeAllFindings': {
+        if (this.aiService) {
+          const { scanId } = message.payload;
+          await this.aiService.analyzeAllFindings(scanId, (batchEvent) => {
+            switch (batchEvent.type) {
+              case 'batch-started':
+                this.panel?.webview.postMessage({
+                  type: 'batchAnalysisStarted',
+                  payload: { scanId: batchEvent.scanId, totalFindings: batchEvent.totalFindings, findingIds: batchEvent.findingIds },
+                });
+                break;
+              case 'batch-progress':
+                this.panel?.webview.postMessage({
+                  type: 'batchAnalysisProgress',
+                  payload: { scanId: batchEvent.scanId, currentIndex: batchEvent.currentIndex, totalFindings: batchEvent.totalFindings, currentFindingId: batchEvent.currentFindingId },
+                });
+                break;
+              case 'batch-finding-event': {
+                const { findingId, event } = batchEvent;
+                switch (event.type) {
+                  case 'progress':
+                    this.panel?.webview.postMessage({
+                      type: 'aiAnalysisProgress',
+                      payload: { findingId, message: event.message, toolName: event.toolName },
+                    });
+                    break;
+                  case 'result':
+                    this.panel?.webview.postMessage({
+                      type: 'aiAnalysisResult',
+                      payload: { findingId, analysis: event.analysis, metadata: event.metadata },
+                    });
+                    break;
+                  case 'error':
+                    this.panel?.webview.postMessage({
+                      type: 'aiAnalysisError',
+                      payload: { findingId, errorType: event.errorType, message: event.message },
+                    });
+                    break;
+                }
+                break;
+              }
+              case 'batch-complete':
+                this.panel?.webview.postMessage({
+                  type: 'batchAnalysisComplete',
+                  payload: { scanId: batchEvent.scanId, analyzedCount: batchEvent.analyzedCount, failedCount: batchEvent.failedCount, skippedCount: batchEvent.skippedCount, status: batchEvent.status },
+                });
+                break;
+            }
+          });
+        }
+        break;
+      }
+      case 'cancelBatchAnalysis': {
+        if (this.aiService) {
+          this.aiService.cancelBatchAnalysis(message.payload.scanId);
+        }
+        break;
+      }
       case 'navigateToCode': {
         const filePath = message.payload.filePath;
         const workspaceRoot = this.scanRootService?.getEffectiveScanRoot()
