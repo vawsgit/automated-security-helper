@@ -52,6 +52,7 @@ The AI system has four layers:
 | **Orchestration** | `aiService.ts` | Concurrency management, batch processing, event routing, database persistence |
 | **Provider** | `claudeAgentProvider.ts` | Claude Agent SDK integration, system prompt construction, structured output schema |
 | **Tools** | `mcpTools.ts` | MCP server with finding-analysis tools exposed to the agent |
+| **Safety** | `safetyHooks.ts` | PreToolUse hooks blocking sensitive file access and dangerous commands |
 | **Interface** | `aiProvider.ts` | `AiProvider` interface, `AnalysisEvent` types |
 
 ## AiService (Orchestration)
@@ -146,6 +147,79 @@ The agent has access to different tool sets based on `ashWorkbench.llm.toolMode`
 | `read-only` (default) | `Read`, `Glob`, `Grep`, `get_finding_context`, `list_related_findings` |
 | `full` | All of the above plus `Write`, `Edit`, `Bash` |
 
+### Safety Hooks
+
+`vsix/src/services/safetyHooks.ts`
+
+The provider attaches PreToolUse hooks to every `query()` call to prevent the agent from accessing sensitive files or running dangerous commands. Hooks are always active — no configuration needed.
+
+#### How hooks are wired
+
+```typescript
+// In ClaudeAgentProvider.analyzeFinding()
+const blockedOps: BlockedOperation[] = [];
+options.hooks = buildSafetyHooks(
+  (msg) => this.log(msg),
+  blockedOps,
+);
+```
+
+`buildSafetyHooks()` returns a hooks object with two PreToolUse matchers:
+
+| Matcher | Hook | Blocks |
+|---------|------|--------|
+| `Read\|Glob\|Grep` | `createFilePathHook` | Any tool input string matching a sensitive file pattern |
+| `Bash` | `createBashCommandHook` | `command` field matching a dangerous command pattern |
+
+#### Sensitive file patterns
+
+```typescript
+/(^|[/\\])\.env/i    // .env, .env.local, .env.production
+/credentials/i        // credentials.json, aws_credentials
+/\.pem$/i             // server.pem, cert.pem
+/\.key$/i             // private.key, tls.key
+/secrets\./i          // secrets.json, secrets.yaml
+/[/\\]\.aws[/\\]/i   // .aws/credentials, .aws/config
+```
+
+The file-path hook iterates all string values in `tool_input` (not just `file_path`) to catch patterns in `path`, `pattern`, and `glob` fields across Read, Glob, and Grep tools.
+
+#### Dangerous command patterns
+
+```typescript
+/rm\s+-rf/i           // rm -rf
+/drop\s+table/i       // DROP TABLE
+/delete\s+from/i      // DELETE FROM
+/\bformat\b/i         // format (word boundary)
+/\bmkfs\b/i           // mkfs (word boundary)
+```
+
+#### Blocked operation queue
+
+Hooks communicate with the async generator via a shared `BlockedOperation[]` array. When a hook denies a tool call, it pushes an entry to the queue. After each SDK message, the generator drains the queue and yields progress events:
+
+```typescript
+// In the generator loop
+while (blockedOps.length > 0) {
+  const op = blockedOps.shift()!;
+  yield {
+    type: 'progress',
+    message: `Blocked: attempted to ${op.toolName.toLowerCase()} ${op.blockedInput}`,
+    toolName: op.toolName,
+  };
+}
+```
+
+These progress events flow through the existing pipeline to the WebView as `aiAnalysisProgress` messages.
+
+#### Error handling
+
+All hooks are fail-closed — if the hook callback throws, it returns a deny result. The `safeLog()` helper wraps log calls in their own try/catch so a broken logger cannot prevent denial.
+
+#### Structural typing
+
+Hook types (`PreToolUseHookInput`, `HookCallback`, `HookResult`) are defined as structural matches in `safetyHooks.ts` rather than imported from `@anthropic-ai/claude-agent-sdk`. This avoids ESM import issues since the SDK is ESM-only and the extension host is CommonJS.
+
 ### Session Persistence
 
 Batch analysis supports session resumption — the `ClaudeAgentProvider` passes a `resume` parameter to maintain context across findings in the same batch.
@@ -228,6 +302,18 @@ Settings are resolved in `ClaudeAgentProvider.buildQueryOptions()`:
 1. Add the tool definition and handler in `mcpTools.ts`
 2. The tool is automatically available to the agent on next analysis
 3. Update both tool mode lists in `claudeAgentProvider.ts` if needed
+
+### Modifying safety hooks
+
+1. Add or update patterns in the `SENSITIVE_FILE_PATTERNS` or `DANGEROUS_COMMAND_PATTERNS` arrays in `safetyHooks.ts`
+2. Add corresponding test cases in `vsix/src/test/unit/safetyHooks.test.ts`
+3. No changes needed in `claudeAgentProvider.ts` — hooks are built dynamically from the pattern arrays
+
+To add a new hook category (e.g., blocking Write to certain paths):
+
+1. Create a new hook factory function in `safetyHooks.ts` (follow `createFilePathHook` as a template)
+2. Add a new matcher entry in `buildSafetyHooks()` (e.g., `{ matcher: 'Write', hooks: [newHook] }`)
+3. Add tests for the new hook
 
 ### Adding a new AI provider
 

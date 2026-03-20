@@ -6,6 +6,7 @@ import {
 } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
 import { CodeBlock } from './CodeBlock';
+import { MarkdownContent } from './MarkdownContent';
 import type { AiAnalysis, AnalysisMetadata, RiskLevel } from '../types/types';
 
 interface AiAnalysisPanelProps {
@@ -36,7 +37,7 @@ export function AiAnalysisPanel({ analysis, metadata }: AiAnalysisPanelProps) {
         <AccordionItem value="explanation">
           <AccordionTrigger className="text-sm">Explanation</AccordionTrigger>
           <AccordionContent>
-            <p className="text-sm leading-relaxed">{analysis.explanation}</p>
+            <MarkdownContent content={analysis.explanation} />
           </AccordionContent>
         </AccordionItem>
 
@@ -49,21 +50,21 @@ export function AiAnalysisPanel({ analysis, metadata }: AiAnalysisPanelProps) {
                 <RiskBadge level={analysis.riskAssessment.exploitability} />
                 <div>
                   <p className="text-xs font-semibold">Exploitability</p>
-                  <p className="text-xs opacity-70">{analysis.riskAssessment.exploitabilityRationale}</p>
+                  <MarkdownContent content={analysis.riskAssessment.exploitabilityRationale} className="text-xs opacity-70" />
                 </div>
               </div>
               <div className="flex items-start gap-2">
                 <RiskBadge level={analysis.riskAssessment.impact} />
                 <div>
                   <p className="text-xs font-semibold">Impact</p>
-                  <p className="text-xs opacity-70">{analysis.riskAssessment.impactRationale}</p>
+                  <MarkdownContent content={analysis.riskAssessment.impactRationale} className="text-xs opacity-70" />
                 </div>
               </div>
               <div className="flex items-start gap-2">
                 <RiskBadge level={analysis.riskAssessment.likelihood} />
                 <div>
                   <p className="text-xs font-semibold">Likelihood</p>
-                  <p className="text-xs opacity-70">{analysis.riskAssessment.likelihoodRationale}</p>
+                  <MarkdownContent content={analysis.riskAssessment.likelihoodRationale} className="text-xs opacity-70" />
                 </div>
               </div>
             </div>
@@ -75,7 +76,7 @@ export function AiAnalysisPanel({ analysis, metadata }: AiAnalysisPanelProps) {
           <AccordionItem value="fix">
             <AccordionTrigger className="text-sm">Suggested Fix</AccordionTrigger>
             <AccordionContent>
-              <p className="text-sm mb-2">{analysis.suggestedFix.description}</p>
+              <MarkdownContent content={analysis.suggestedFix.description} className="mb-2" />
               <CodeBlock code={analysis.suggestedFix.diffText} startLine={1} />
             </AccordionContent>
           </AccordionItem>

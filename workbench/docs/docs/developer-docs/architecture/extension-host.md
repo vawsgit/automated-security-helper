@@ -31,6 +31,7 @@ vsix/src/
     claudeAgentProvider.ts        # Claude Agent SDK implementation
     claudeSettingsDetector.ts     # ~/.claude/settings.json detection
     mcpTools.ts                   # MCP server for finding-analysis tools
+    safetyHooks.ts                # PreToolUse hooks (sensitive files, dangerous commands)
     admin.ts                      # Application info and reset
   providers/
     findingsPanelManager.ts       # Findings editor panel (WebviewPanel)

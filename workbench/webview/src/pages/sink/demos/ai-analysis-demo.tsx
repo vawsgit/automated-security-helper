@@ -12,17 +12,35 @@ import { Sparkles } from 'lucide-react';
 import type { AiAnalysis, AnalysisMetadata } from '../../../types/types';
 
 const sampleAnalysis: AiAnalysis = {
-  explanation: 'This SQL query concatenates user input directly into the query string without parameterization, creating a SQL injection vulnerability. An attacker could manipulate the `username` parameter to execute arbitrary SQL commands.',
+  explanation: `This SQL query concatenates user input directly into the query string without parameterization, creating a **SQL injection vulnerability**.
+
+An attacker could manipulate the \`username\` parameter to execute arbitrary SQL commands.
+
+**What the code does (line 42):**
+\`\`\`python
+query = f"SELECT * FROM users WHERE name = '{username}'"
+\`\`\`
+
+**Why this is dangerous:**
+1. **No input sanitization** — the \`username\` value is inserted verbatim
+2. **Direct database access** — the query runs with full privileges
+3. **Well-known attack vector** — automated tools can exploit this in seconds
+
+---
+
+The \`get_user()\` function is called from two locations:
+- \`routes/auth.py\` line 15 (login endpoint)
+- \`routes/admin.py\` line 87 (user lookup)`,
   riskAssessment: {
     exploitability: 'HIGH',
-    exploitabilityRationale: 'The user input flows directly from a request parameter to the SQL query with no sanitization.',
+    exploitabilityRationale: 'The user input flows directly from a request parameter to the SQL query with **no sanitization**. This is a textbook injection pattern.',
     impact: 'CRITICAL',
     impactRationale: 'Successful exploitation could lead to full database access, data exfiltration, or data destruction.',
     likelihood: 'HIGH',
-    likelihoodRationale: 'SQL injection is well-understood and automated tools can detect and exploit this pattern.',
+    likelihoodRationale: 'SQL injection is well-understood and automated tools (e.g., `sqlmap`) can detect and exploit this pattern.',
   },
   suggestedFix: {
-    description: 'Use parameterized queries instead of string concatenation.',
+    description: 'Use **parameterized queries** instead of string concatenation. This ensures user input is always treated as data, never as SQL syntax.',
     diffText: '- query = f"SELECT * FROM users WHERE name = \'{username}\'"\n+ query = "SELECT * FROM users WHERE name = %s"\n+ cursor.execute(query, (username,))',
     language: 'python',
   },

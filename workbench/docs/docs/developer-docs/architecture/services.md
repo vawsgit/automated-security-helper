@@ -30,6 +30,7 @@ Services are the business logic layer of ASH Workbench. They live in `vsix/src/s
 | `SarifService` | `sarif.ts` | SARIF JSON parsing, finding extraction, deduplication |
 | `AiProvider` | `aiProvider.ts` | Interface definition and event types for AI providers |
 | `McpTools` | `mcpTools.ts` | MCP server creation for finding-analysis tools |
+| `SafetyHooks` | `safetyHooks.ts` | PreToolUse hooks blocking sensitive files and dangerous commands |
 | `ClaudeSettingsDetector` | `claudeSettingsDetector.ts` | `~/.claude/settings.json` detection |
 | `ProjectService` | `project.ts` | Project record upsert |
 
