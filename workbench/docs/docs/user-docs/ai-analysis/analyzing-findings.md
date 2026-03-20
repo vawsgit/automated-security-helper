@@ -61,6 +61,10 @@ Metadata about the analysis:
 - **Analyzed at** — timestamp
 - **Tools used** — what tools Claude used during analysis (e.g., file reading, code search)
 
+## Blocked operations
+
+During analysis, the AI agent may attempt to read files or run commands that are blocked by [safety guardrails](setup.md#safety-guardrails). When this happens, you see a progress message like "Blocked: attempted to read .env". This is expected — the guardrails protect your sensitive files while still allowing the AI to analyze the finding using other available context.
+
 ## Re-analyze a finding
 
 If a finding's code has changed or you want a fresh analysis, click the **Re-analyze** button at the bottom of the analysis panel. This runs a new analysis and replaces the previous results.

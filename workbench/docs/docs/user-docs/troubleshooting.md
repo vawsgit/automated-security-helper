@@ -126,6 +126,14 @@ Common problems and solutions when using ASH Workbench.
 - Increase `ashWorkbench.llm.maxBudgetUsd` (default: $1.00).
 - Increase `ashWorkbench.llm.maxTurns` (default: 15).
 
+### Analysis shows "Blocked" messages
+
+**Problem:** During analysis, you see progress messages like "Blocked: attempted to read .env".
+
+**Cause:** The AI agent tried to access a sensitive file or run a dangerous command, and ASH Workbench's safety guardrails denied the request.
+
+**Solution:** This is normal and expected. The AI continues its analysis using other available context. Blocked files include `.env*`, `credentials*`, `*.pem`, `*.key`, `secrets.*`, and `.aws/` paths. See [Safety Guardrails](ai-analysis/setup.md#safety-guardrails) for details.
+
 ### Batch analysis stops early
 
 **Problem:** Batch analysis stops after a few findings.

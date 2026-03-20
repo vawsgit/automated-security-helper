@@ -58,6 +58,15 @@ Control costs and behavior with these settings:
 | **Tool Mode** | `read-only` | What the AI can access. `read-only` allows file reading and searching. `full` also allows file editing and shell commands. |
 | **Batch Consecutive Failure Limit** | `3` | How many consecutive failures before batch analysis stops. Resets to zero after each success. |
 
+## Safety guardrails
+
+ASH Workbench automatically prevents the AI agent from accessing sensitive files or running dangerous commands during analysis:
+
+- **Sensitive files blocked:** `.env*`, `credentials*`, `*.pem`, `*.key`, `secrets.*`, and `.aws/` paths are never read by the AI agent.
+- **Dangerous commands blocked:** In `full` tool mode, destructive commands (`rm -rf`, `DROP TABLE`, `DELETE FROM`, `format`, `mkfs`) are denied.
+
+Blocked operations appear in the analysis progress as "Blocked: attempted to read .env" and are logged to the **ASH** Output Channel. No configuration is needed — guardrails are always active.
+
 ## AWS credential refresh
 
 If your AWS credentials expire periodically (e.g., SSO sessions), you can configure a shell command to refresh them:

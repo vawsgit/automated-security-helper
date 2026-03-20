@@ -115,7 +115,7 @@ Maximum reasoning iterations per AI analysis. Higher values allow deeper analysi
 **Type:** string (enum: `"read-only"`, `"full"`)
 **Default:** `"read-only"`
 
-Tool access level for AI analysis. `read-only` allows the AI to read files and search code. `full` also allows file editing and shell commands.
+Tool access level for AI analysis. `read-only` allows the AI to read files and search code. `full` also allows file editing and shell commands. In both modes, [safety guardrails](../ai-analysis/setup.md#safety-guardrails) block access to sensitive files and dangerous commands.
 
 :::warning
 The `full` tool mode gives the AI agent write access to your filesystem. Use with caution and only when you need the AI to suggest concrete code changes.

@@ -230,7 +230,7 @@ function FacetedFilter<TData, TValue>({
 
 // --- Main Component ---
 
-export function FindingsView({ findings, selectedTarget, showSuppressed, onToggleSuppressed, onSelectFinding, onSetDisposition, onNavigateDashboard, onClearTarget, batchAnalysisState, analysisStates, onAnalyzeAll, onCancelBatch }: FindingsViewProps) {
+export function FindingsView({ findings, selectedTarget, showSuppressed, onToggleSuppressed, onSelectFinding, onSetDisposition, onNavigateDashboard, onClearTarget, batchAnalysisState, analysisStates: _analysisStates, onAnalyzeAll, onCancelBatch }: FindingsViewProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [rowSelection, setRowSelection] = useState({});
