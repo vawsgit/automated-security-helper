@@ -11,6 +11,7 @@ import type { AshYamlService } from '../services/ashYaml';
 import type { AshYamlWriteService } from '../services/ashYamlWrite';
 import type { PrismaClient } from '@prisma/client';
 import { AdminService } from '../services/admin';
+import type { AiService } from '../services/aiService';
 
 export class FindingsPanelManager {
   private panel: vscode.WebviewPanel | undefined;
@@ -21,6 +22,7 @@ export class FindingsPanelManager {
   private scanRootService: ScanRootService | undefined;
   private ashYamlService: AshYamlService | undefined;
   private ashYamlWriteService: AshYamlWriteService | undefined;
+  private aiService: AiService | undefined;
   private adminDeps: { db: PrismaClient; extensionVersion: string; storagePath: string } | undefined;
 
   constructor(
@@ -53,6 +55,10 @@ export class FindingsPanelManager {
 
   setAshYamlWriteService(service: AshYamlWriteService): void {
     this.ashYamlWriteService = service;
+  }
+
+  setAiService(service: AiService): void {
+    this.aiService = service;
   }
 
   /**
@@ -484,6 +490,51 @@ export class FindingsPanelManager {
         if (this.ashYamlWriteService) {
           const result = await this.ashYamlWriteService.addSuppressionDirect(message.payload.suppression);
           this.panel?.webview.postMessage({ type: 'suppressionWriteResult', payload: result });
+        }
+        break;
+      }
+      case 'testAiConnection': {
+        if (this.aiService) {
+          const result = await this.aiService.testConnection();
+          this.panel?.webview.postMessage({ type: 'aiTestResult', payload: result });
+        }
+        break;
+      }
+      case 'analyzeFinding': {
+        if (this.aiService) {
+          const { findingId } = message.payload;
+          this.panel?.webview.postMessage({
+            type: 'aiAnalysisStarted',
+            payload: { findingId, model: 'claude' },
+          });
+          await this.aiService.analyzeFinding(findingId, (event) => {
+            switch (event.type) {
+              case 'progress':
+                this.panel?.webview.postMessage({
+                  type: 'aiAnalysisProgress',
+                  payload: { findingId, message: event.message, toolName: event.toolName },
+                });
+                break;
+              case 'result':
+                this.panel?.webview.postMessage({
+                  type: 'aiAnalysisResult',
+                  payload: { findingId, analysis: event.analysis, metadata: event.metadata },
+                });
+                break;
+              case 'error':
+                this.panel?.webview.postMessage({
+                  type: 'aiAnalysisError',
+                  payload: { findingId, errorType: event.errorType, message: event.message },
+                });
+                break;
+            }
+          });
+        }
+        break;
+      }
+      case 'cancelAiAnalysis': {
+        if (this.aiService) {
+          this.aiService.cancelAnalysis(message.payload.findingId);
         }
         break;
       }

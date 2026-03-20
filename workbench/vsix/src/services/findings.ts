@@ -1,5 +1,6 @@
 import type { PrismaClient, Disposition as PrismaDisposition } from '@prisma/client';
-import type { FindingRow, ScanSummary, ScanTarget, DispositionSummary, FilterState, Severity, Disposition, SuppressionSummary } from '../models/types';
+import { Prisma } from '@prisma/client';
+import type { FindingRow, ScanSummary, ScanTarget, DispositionSummary, FilterState, Severity, Disposition, SuppressionSummary, AiAnalysis, AnalysisMetadata, StoredAiAnalysis } from '../models/types';
 import { mapFindingToRow, mapScanToSummary, mapScanTargetToView } from '../models/mappers';
 import type { AshYamlService } from './ashYaml';
 import type { ScanRootService } from './scanRoot';
@@ -19,6 +20,21 @@ export class FindingsService {
     private readonly db: PrismaClient,
     private readonly projectId: string,
   ) {}
+
+  async setAiAnalysis(findingId: string, analysis: AiAnalysis, metadata: AnalysisMetadata): Promise<void> {
+    const stored: StoredAiAnalysis = { analysis, metadata };
+    await this.db.finding.update({
+      where: { id: findingId },
+      data: { aiAnalysis: stored as unknown as Prisma.InputJsonValue },
+    });
+  }
+
+  async clearAiAnalysis(findingId: string): Promise<void> {
+    await this.db.finding.update({
+      where: { id: findingId },
+      data: { aiAnalysis: Prisma.JsonNull },
+    });
+  }
 
   async deleteScan(scanId: string): Promise<void> {
     const scan = await this.db.scan.findUnique({ where: { id: scanId } });

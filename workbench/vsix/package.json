@@ -125,20 +125,48 @@
         "ashWorkbench.llm.provider": {
           "type": "string",
           "enum": [
-            "bedrock"
+            "bedrock",
+            "anthropic-api"
           ],
-          "default": "bedrock",
-          "description": "LLM provider for AI-assisted analysis"
+          "default": "",
+          "description": "LLM provider for AI-assisted analysis. Leave empty to inherit from Claude Code settings."
         },
         "ashWorkbench.llm.region": {
           "type": "string",
-          "default": "us-east-1",
-          "description": "AWS region for LLM provider"
+          "default": "",
+          "description": "AWS region for LLM provider. Leave empty to inherit from Claude Code settings."
         },
         "ashWorkbench.llm.modelId": {
           "type": "string",
-          "default": "anthropic.claude-sonnet-4-20250514",
-          "description": "LLM model identifier"
+          "default": "",
+          "description": "LLM model identifier. Leave empty to inherit from Claude Code settings."
+        },
+        "ashWorkbench.llm.useClaudeSettings": {
+          "type": "boolean",
+          "default": true,
+          "description": "Inherit LLM configuration from Claude Code settings (~/.claude/settings.json). When true, provider/region/model settings above act as overrides only."
+        },
+        "ashWorkbench.llm.maxBudgetUsd": {
+          "type": "number",
+          "default": 1.00,
+          "minimum": 0.01,
+          "description": "Maximum cost in USD allowed per AI analysis."
+        },
+        "ashWorkbench.llm.toolMode": {
+          "type": "string",
+          "enum": [
+            "read-only",
+            "full"
+          ],
+          "default": "read-only",
+          "description": "Tool access level for AI analysis. 'read-only' allows file reading and searching only. 'full' also allows file editing and shell commands."
+        },
+        "ashWorkbench.llm.maxTurns": {
+          "type": "number",
+          "default": 15,
+          "minimum": 1,
+          "maximum": 50,
+          "description": "Maximum reasoning iterations per AI analysis."
         }
       }
     }
@@ -159,13 +187,15 @@
     "test:integration": "vscode-test"
   },
   "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.2.80",
     "@augment-vir/test": "^31.68.1",
     "@electric-sql/pglite": "^0.2.17",
     "@prisma/client": "^7.5.0",
     "@prisma/driver-adapter-utils": "^7.5.0",
     "js-yaml": "^4.1.1",
     "picomatch": "^4.0.3",
-    "prisma-pglite": "^2.0.2"
+    "prisma-pglite": "^2.0.2",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",

@@ -11,6 +11,7 @@ import type { AshYamlService } from '../services/ashYaml';
 import type { AshYamlConfigSummary } from '../models/types';
 import type { PrismaClient } from '@prisma/client';
 import { AdminService } from '../services/admin';
+import type { AiService } from '../services/aiService';
 
 export class SidebarWebviewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'ashWorkbench.mainView';
@@ -22,6 +23,7 @@ export class SidebarWebviewProvider implements vscode.WebviewViewProvider {
   private findingsService?: FindingsService;
   private scanRootService?: ScanRootService;
   private ashYamlService?: AshYamlService;
+  private aiService?: AiService;
   private adminDeps?: { db: PrismaClient; extensionVersion: string; storagePath: string };
 
   constructor(
@@ -58,6 +60,10 @@ export class SidebarWebviewProvider implements vscode.WebviewViewProvider {
 
   setAshYamlService(service: AshYamlService): void {
     this.ashYamlService = service;
+  }
+
+  setAiService(service: AiService): void {
+    this.aiService = service;
   }
 
   resolveWebviewView(
@@ -161,7 +167,21 @@ export class SidebarWebviewProvider implements vscode.WebviewViewProvider {
       case 'requestApplicationInfo':
         this.handleRequestApplicationInfo();
         break;
+      case 'testAiConnection':
+        this.handleTestAiConnection();
+        break;
     }
+  }
+
+  private async handleTestAiConnection(): Promise<void> {
+    if (!this.aiService) {
+      return;
+    }
+    const result = await this.aiService.testConnection();
+    this.view?.webview.postMessage({
+      type: 'aiTestResult',
+      payload: result,
+    });
   }
 
   private async handleDeleteScan(scanId: string): Promise<void> {

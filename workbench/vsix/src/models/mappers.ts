@@ -1,5 +1,5 @@
 import type { Scan, Finding, ScanTarget as PrismaScanTarget } from '@prisma/client';
-import type { ScanSummary, FindingRow, ScanTarget, Severity, Disposition, DispositionSummary, AshSuppression } from './types';
+import type { ScanSummary, FindingRow, ScanTarget, Severity, Disposition, DispositionSummary, AshSuppression, AiAnalysis, StoredAiAnalysis } from './types';
 
 const SEVERITY_KEYS: Severity[] = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO'];
 
@@ -54,6 +54,17 @@ export function generateYamlEntry(s: AshSuppression): string {
   return lines.join('\n');
 }
 
+function parseStoredAiAnalysis(json: unknown): AiAnalysis | null {
+  if (!json || typeof json !== 'object') {
+    return null;
+  }
+  const stored = json as StoredAiAnalysis;
+  if (stored.analysis && typeof stored.analysis === 'object') {
+    return stored.analysis;
+  }
+  return null;
+}
+
 export function mapFindingToRow(finding: Finding, suppression?: AshSuppression): FindingRow {
   return {
     id: finding.id,
@@ -71,7 +82,7 @@ export function mapFindingToRow(finding: Finding, suppression?: AshSuppression):
     codeSnippet: finding.snippet ?? '',
     notes: finding.notes ?? '',
     firstDetectedAt: new Date().toISOString(),
-    aiAnalysis: null,
+    aiAnalysis: parseStoredAiAnalysis(finding.aiAnalysis),
     suppression: suppression ? {
       justification: suppression.reason,
       yamlEntry: generateYamlEntry(suppression),

@@ -1,4 +1,4 @@
-import type { ScanSummary, ScanTarget, FindingRow, DispositionSummary, Disposition, FilterState, ApplicationInfo, SuppressionSummary, AshYamlConfigSummary, SuppressionInput, SuppressionResult, SuppressionEntry, AshIgnorePath, AshSuppression, SuppressionWriteResult } from './types';
+import type { ScanSummary, ScanTarget, FindingRow, DispositionSummary, Disposition, FilterState, ApplicationInfo, SuppressionSummary, AshYamlConfigSummary, SuppressionInput, SuppressionResult, SuppressionEntry, AshIgnorePath, AshSuppression, SuppressionWriteResult, AiAnalysis, AnalysisMetadata } from './types';
 
 // Extension Host -> WebView
 export type ExtToWebviewMessage =
@@ -18,7 +18,13 @@ export type ExtToWebviewMessage =
   | { type: 'ashYamlChanged'; payload: { config: AshYamlConfigSummary } }
   | { type: 'suppressionResult'; payload: SuppressionResult }
   | { type: 'suppressionsUpdate'; payload: { suppressions: SuppressionEntry[]; ignorePaths: AshIgnorePath[]; configInfo: AshYamlConfigSummary } }
-  | { type: 'suppressionWriteResult'; payload: SuppressionWriteResult };
+  | { type: 'suppressionWriteResult'; payload: SuppressionWriteResult }
+  // AI Analysis (Spec 018)
+  | { type: 'aiAnalysisStarted'; payload: { findingId: string; model: string } }
+  | { type: 'aiAnalysisProgress'; payload: { findingId: string; message: string; toolName?: string } }
+  | { type: 'aiAnalysisResult'; payload: { findingId: string; analysis: AiAnalysis; metadata: AnalysisMetadata } }
+  | { type: 'aiAnalysisError'; payload: { findingId: string; errorType: string; message: string } }
+  | { type: 'aiTestResult'; payload: { success: boolean; model?: string; latencyMs: number; error?: { type: string; message: string } } };
 
 // WebView -> Extension Host
 export type WebviewToExtMessage =
@@ -45,4 +51,8 @@ export type WebviewToExtMessage =
   | { type: 'requestSuppressions' }
   | { type: 'editSuppression'; payload: { old: AshSuppression; updated: AshSuppression } }
   | { type: 'removeSuppression'; payload: { suppression: AshSuppression } }
-  | { type: 'addSuppression'; payload: { suppression: AshSuppression } };
+  | { type: 'addSuppression'; payload: { suppression: AshSuppression } }
+  // AI Analysis (Spec 018)
+  | { type: 'testAiConnection' }
+  | { type: 'analyzeFinding'; payload: { findingId: string } }
+  | { type: 'cancelAiAnalysis'; payload: { findingId: string } };

@@ -12,6 +12,7 @@ import { ScanRootService } from './services/scanRoot';
 import { AshYamlService } from './services/ashYaml';
 import { AshYamlWriteService } from './services/ashYamlWrite';
 import { AdminService } from './services/admin';
+import { AiService } from './services/aiService';
 
 export async function activate(context: vscode.ExtensionContext) {
   console.log('[ASH] Activating ASH Workbench extension');
@@ -99,6 +100,10 @@ export async function activate(context: vscode.ExtensionContext) {
   // Findings service
   const findingsService = new FindingsService(db, project.id);
 
+  // AI service (lazy provider init on first use)
+  const aiService = new AiService(findingsService, workspaceRoot, ashChannel);
+  context.subscriptions.push(aiService);
+
   // ASH YAML config service (reads .ash.yaml, provides suppression matching)
   const ashYamlService = new AshYamlService(scanRootService.getEffectiveScanRoot());
   context.subscriptions.push(ashYamlService);
@@ -122,6 +127,7 @@ export async function activate(context: vscode.ExtensionContext) {
   findingsPanelManager.setScanRootService(scanRootService);
   findingsPanelManager.setAshYamlService(ashYamlService);
   findingsPanelManager.setAshYamlWriteService(ashYamlWriteService);
+  findingsPanelManager.setAiService(aiService);
   // Admin dependencies for application info and reset
   const extensionVersion = context.extension?.packageJSON?.version ?? '0.0.0';
   const adminDeps = { db, extensionVersion, storagePath: context.globalStorageUri.fsPath };
@@ -146,6 +152,7 @@ export async function activate(context: vscode.ExtensionContext) {
   sidebarProvider.setFindingsService(findingsService);
   sidebarProvider.setScanRootService(scanRootService);
   sidebarProvider.setAshYamlService(ashYamlService);
+  sidebarProvider.setAiService(aiService);
   sidebarProvider.setAdminDeps(adminDeps);
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(SidebarWebviewProvider.viewType, sidebarProvider),

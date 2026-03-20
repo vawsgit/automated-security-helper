@@ -200,3 +200,17 @@ export interface SuppressionWriteResult {
   success: boolean;
   error?: string;
 }
+
+// AI Analysis (Spec 018)
+
+export interface AnalysisMetadata {
+  analyzedAt: string;
+  modelId: string;
+  costUsd: number;
+  toolsUsed: string[];
+}
+
+export interface StoredAiAnalysis {
+  analysis: AiAnalysis;
+  metadata: AnalysisMetadata;
+}
