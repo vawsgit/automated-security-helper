@@ -3,8 +3,8 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { severityColor, dispositionColor } from '@/lib/theme-colors';
 import { postMessage } from '../hooks/useVSCodeAPI';
-import { Play, List, FolderOpen, LayoutDashboard, Settings } from 'lucide-react';
-import type { ScanSummary, ScanTarget, DispositionSummary, FindingRow, Severity, Disposition, SuppressionSummary } from '../types/types';
+import { Play, List, FolderOpen, LayoutDashboard, Settings, Shield } from 'lucide-react';
+import type { ScanSummary, ScanTarget, DispositionSummary, FindingRow, Severity, Disposition, SuppressionSummary, AshYamlConfigSummary } from '../types/types';
 
 interface SidebarDashboardProps {
   scans: ScanSummary[];
@@ -13,9 +13,10 @@ interface SidebarDashboardProps {
   currentFindings?: FindingRow[];
   suppressionSummary?: SuppressionSummary;
   lastScannedAt?: string;
+  ashYamlConfig?: AshYamlConfigSummary;
 }
 
-export function SidebarDashboard({ scans, summary, scanTargets, currentFindings, suppressionSummary, lastScannedAt }: SidebarDashboardProps) {
+export function SidebarDashboard({ scans, summary, scanTargets, currentFindings, suppressionSummary, lastScannedAt, ashYamlConfig }: SidebarDashboardProps) {
   const activeScan = scans.find(s => s.status === 'RUNNING');
   const latestScan = scans.find(s => s.status === 'COMPLETED');
   const activeTotal = suppressionSummary?.active ?? summary.total;
@@ -53,6 +54,16 @@ export function SidebarDashboard({ scans, summary, scanTargets, currentFindings,
       >
         <Play className="h-3.5 w-3.5 mr-1.5" />
         Scan Workspace
+      </Button>
+
+      <Button
+        variant="outline"
+        className="w-full"
+        size="sm"
+        onClick={() => postMessage({ type: 'requestSuppressions' })}
+      >
+        <Shield className="h-3.5 w-3.5 mr-1.5" />
+        Manage Suppressions ({ashYamlConfig?.suppressionCount ?? 0} rules)
       </Button>
 
       {/* Active scan indicator */}

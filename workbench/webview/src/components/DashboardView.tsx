@@ -6,7 +6,7 @@ import { TriageProgressBar } from './TriageProgressBar';
 import { ScanTargetCard } from './ScanTargetCard';
 import { SeverityBadge } from './SeverityBadge';
 import { postMessage } from '../hooks/useVSCodeAPI';
-import { List, History, Play, FolderTree } from 'lucide-react';
+import { List, History, Play, FolderTree, Shield } from 'lucide-react';
 import type { Project, ScanTarget, ScanSummary, FindingRow, DispositionSummary, Severity, SuppressionSummary } from '../types/types';
 
 interface DashboardViewProps {
@@ -18,7 +18,7 @@ interface DashboardViewProps {
   currentFindings?: FindingRow[];
   suppressionSummary?: SuppressionSummary;
   lastScannedAt?: string;
-  onNavigate: (view: 'findingList' | 'scanHistory') => void;
+  onNavigate: (view: 'findingList' | 'scanHistory' | 'suppressionManager') => void;
   onSelectScanTarget: (scanTargetId: string) => void;
 }
 
@@ -125,6 +125,10 @@ export function DashboardView({
         <Button size="sm" variant="outline" onClick={() => onNavigate('scanHistory')}>
           <History className="h-3.5 w-3.5 mr-1.5" />
           Scan History
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => onNavigate('suppressionManager')}>
+          <Shield className="h-3.5 w-3.5 mr-1.5" />
+          Manage Suppressions
         </Button>
       </div>
     </div>

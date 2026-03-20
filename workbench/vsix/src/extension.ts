@@ -251,6 +251,13 @@ export async function activate(context: vscode.ExtensionContext) {
     }),
   );
 
+  // Manage suppressions command — opens the suppression manager view
+  context.subscriptions.push(
+    vscode.commands.registerCommand('ashWorkbench.manageSuppressions', () => {
+      findingsPanelManager.showSuppressionManager();
+    }),
+  );
+
   // Open workbench command — opens findings for the first completed scan
   context.subscriptions.push(
     vscode.commands.registerCommand('ashWorkbench.openWorkbench', async () => {

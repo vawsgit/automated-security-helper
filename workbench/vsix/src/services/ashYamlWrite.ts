@@ -6,6 +6,7 @@ import type {
   AshSuppression,
   SuppressionInput,
   SuppressionResult,
+  SuppressionWriteResult,
   FindingRow,
 } from '../models/types';
 import { discoverConfigFile, parseConfigFile } from './ashYamlCore';
@@ -155,6 +156,140 @@ export class AshYamlWriteService {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       return { success: false, findingId, action: 'unsuppress', error: `Failed to remove suppression: ${msg}` };
+    }
+  }
+
+  async updateSuppression(old: AshSuppression, updated: AshSuppression): Promise<SuppressionWriteResult> {
+    try {
+      if (!updated.reason?.trim()) {
+        return { success: false, error: 'Reason is required.' };
+      }
+      if (updated.expiration) {
+        const expDate = new Date(updated.expiration);
+        if (isNaN(expDate.getTime()) || expDate <= new Date()) {
+          return { success: false, error: 'Expiration must be a future date.' };
+        }
+      }
+
+      const configPath = discoverConfigFile(this.scanRoot);
+      if (!configPath) {
+        return { success: false, error: 'No .ash.yaml config file found.' };
+      }
+
+      const mtime = this.getFileMtime(configPath);
+      const fileContent = fs.readFileSync(configPath, 'utf-8');
+      const config = parseConfigFile(configPath);
+      const index = findSuppressionIndex(config.suppressions, old);
+      if (index === -1) {
+        return { success: false, error: 'Suppression rule not found. It may have been modified externally.' };
+      }
+
+      const currentMtime = this.getFileMtime(configPath);
+      if (currentMtime !== mtime) {
+        return { success: false, error: '.ash.yaml was modified externally. Please try again.' };
+      }
+
+      const updatedSuppressions = [...config.suppressions];
+      updatedSuppressions[index] = updated;
+      const updatedContent = reserializeSuppressionsSection(fileContent, updatedSuppressions);
+
+      await vscode.workspace.fs.writeFile(
+        vscode.Uri.file(configPath),
+        Buffer.from(updatedContent, 'utf-8'),
+      );
+
+      return { success: true };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return { success: false, error: `Failed to update suppression: ${msg}` };
+    }
+  }
+
+  async removeSuppressionRule(suppression: AshSuppression): Promise<SuppressionWriteResult> {
+    try {
+      const configPath = discoverConfigFile(this.scanRoot);
+      if (!configPath) {
+        return { success: true }; // No file = nothing to remove
+      }
+
+      const mtime = this.getFileMtime(configPath);
+      const fileContent = fs.readFileSync(configPath, 'utf-8');
+      const config = parseConfigFile(configPath);
+      const index = findSuppressionIndex(config.suppressions, suppression);
+      if (index === -1) {
+        return { success: true }; // Already removed
+      }
+
+      const currentMtime = this.getFileMtime(configPath);
+      if (currentMtime !== mtime) {
+        return { success: false, error: '.ash.yaml was modified externally. Please try again.' };
+      }
+
+      const updatedSuppressions = [...config.suppressions];
+      updatedSuppressions.splice(index, 1);
+      const updatedContent = reserializeSuppressionsSection(fileContent, updatedSuppressions);
+
+      await vscode.workspace.fs.writeFile(
+        vscode.Uri.file(configPath),
+        Buffer.from(updatedContent, 'utf-8'),
+      );
+
+      return { success: true };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return { success: false, error: `Failed to remove suppression: ${msg}` };
+    }
+  }
+
+  async addSuppressionDirect(suppression: AshSuppression): Promise<SuppressionWriteResult> {
+    try {
+      if (!suppression.reason?.trim()) {
+        return { success: false, error: 'Reason is required.' };
+      }
+      if (suppression.expiration) {
+        const expDate = new Date(suppression.expiration);
+        if (isNaN(expDate.getTime()) || expDate <= new Date()) {
+          return { success: false, error: 'Expiration must be a future date.' };
+        }
+      }
+
+      const configPath = discoverConfigFile(this.scanRoot);
+
+      if (!configPath) {
+        const newPath = path.join(this.scanRoot, '.ash.yaml');
+        const content = generateSkeleton(suppression);
+        await vscode.workspace.fs.writeFile(
+          vscode.Uri.file(newPath),
+          Buffer.from(content, 'utf-8'),
+        );
+        return { success: true };
+      }
+
+      const mtime = this.getFileMtime(configPath);
+      const fileContent = fs.readFileSync(configPath, 'utf-8');
+
+      try {
+        yaml.load(fileContent, { schema: yaml.DEFAULT_SCHEMA });
+      } catch (parseErr) {
+        const msg = parseErr instanceof Error ? parseErr.message : String(parseErr);
+        return { success: false, error: `.ash.yaml contains invalid YAML: ${msg}` };
+      }
+
+      const currentMtime = this.getFileMtime(configPath);
+      if (currentMtime !== mtime) {
+        return { success: false, error: '.ash.yaml was modified externally. Please try again.' };
+      }
+
+      const updatedContent = appendSuppressionEntry(fileContent, suppression);
+      await vscode.workspace.fs.writeFile(
+        vscode.Uri.file(configPath),
+        Buffer.from(updatedContent, 'utf-8'),
+      );
+
+      return { success: true };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return { success: false, error: `Failed to add suppression: ${msg}` };
     }
   }
 

@@ -22,6 +22,7 @@ import { SeverityBadgeDemo } from './demos/severity-badge-demo';
 import { DispositionBadgeDemo } from './demos/disposition-badge-demo';
 import { TasksDemo } from './demos/tasks-demo';
 import { SuppressionFormDemo } from './demos/suppression-form-demo';
+import { SuppressionManagementDemo } from './demos/suppression-management-demo';
 
 export type SinkComponentConfig = {
   name: string;
@@ -55,4 +56,5 @@ export const sinkRegistry: Record<string, SinkComponentConfig> = {
   'disposition-badge': { name: 'Disposition Badge', component: DispositionBadgeDemo, type: 'app' },
   tasks: { name: 'Tasks', component: TasksDemo, type: 'app', className: 'w-full' },
   'suppression-form': { name: 'Suppression Form', component: SuppressionFormDemo, type: 'app', className: 'w-full' },
+  'suppression-management': { name: 'Suppression Management', component: SuppressionManagementDemo, type: 'app', className: 'w-full' },
 };

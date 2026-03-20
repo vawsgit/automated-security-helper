@@ -177,3 +177,26 @@ export interface SuppressionResult {
   action: 'suppress' | 'unsuppress';
   error?: string;
 }
+
+// Suppression Management View (Spec 017)
+
+export type SuppressionStatus = 'active' | 'unused' | 'expired';
+
+export interface MatchedFindingRef {
+  id: string;
+  severity: string;
+  title: string;
+  file: string;
+  line: number | null;
+}
+
+export interface SuppressionEntry extends AshSuppression {
+  status: SuppressionStatus;
+  matchCount: number;
+  matchedFindings: MatchedFindingRef[];
+}
+
+export interface SuppressionWriteResult {
+  success: boolean;
+  error?: string;
+}

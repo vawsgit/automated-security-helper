@@ -189,6 +189,24 @@ export class FindingsPanelManager {
     }
   }
 
+  public showSuppressionManager(): void {
+    const isNew = this.ensurePanel();
+    if (!isNew) {
+      this.panel!.webview.postMessage({
+        type: 'init',
+        payload: { context: 'editorPanel', scanId: '' },
+      });
+    }
+    // Defer initial data request to let the panel initialize
+    setTimeout(() => {
+      this.panel?.webview.postMessage({
+        type: 'init',
+        payload: { context: 'editorPanel', scanId: '' },
+      });
+      // The webview will request suppressions after receiving init
+    }, isNew ? 500 : 50);
+  }
+
   postAshYamlChanged(config: AshYamlConfigSummary): void {
     this.panel?.webview.postMessage({
       type: 'ashYamlChanged',
@@ -421,6 +439,51 @@ export class FindingsPanelManager {
             findings,
           );
           this.panel?.webview.postMessage({ type: 'suppressionResult', payload: result });
+        }
+        break;
+      }
+      case 'requestSuppressions': {
+        if (this.ashYamlService && this.findingsService && this.scanRootService) {
+          const currentResult = await this.findingsService.getCurrentFindings(this.scanRootService, this.ashYamlService);
+          const findings = currentResult?.findings ?? [];
+          const suppressions = this.ashYamlService.getSuppressionStatuses(findings);
+          const config = this.ashYamlService.getConfig();
+          const ignorePaths = config.ignorePaths;
+          const configInfo: AshYamlConfigSummary = {
+            suppressionCount: config.suppressions.length,
+            ignorePathCount: config.ignorePaths.length,
+            severityThreshold: config.severityThreshold,
+            projectName: config.projectName || null,
+            enabledScanners: config.scanners.filter(s => s.enabled).map(s => s.name),
+          };
+          this.panel?.webview.postMessage({
+            type: 'suppressionsUpdate',
+            payload: { suppressions, ignorePaths, configInfo },
+          });
+        }
+        break;
+      }
+      case 'editSuppression': {
+        if (this.ashYamlWriteService) {
+          const result = await this.ashYamlWriteService.updateSuppression(
+            message.payload.old,
+            message.payload.updated,
+          );
+          this.panel?.webview.postMessage({ type: 'suppressionWriteResult', payload: result });
+        }
+        break;
+      }
+      case 'removeSuppression': {
+        if (this.ashYamlWriteService) {
+          const result = await this.ashYamlWriteService.removeSuppressionRule(message.payload.suppression);
+          this.panel?.webview.postMessage({ type: 'suppressionWriteResult', payload: result });
+        }
+        break;
+      }
+      case 'addSuppression': {
+        if (this.ashYamlWriteService) {
+          const result = await this.ashYamlWriteService.addSuppressionDirect(message.payload.suppression);
+          this.panel?.webview.postMessage({ type: 'suppressionWriteResult', payload: result });
         }
         break;
       }

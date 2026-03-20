@@ -60,6 +60,10 @@
       {
         "command": "ashWorkbench.resetApplication",
         "title": "ASH: Reset Application"
+      },
+      {
+        "command": "ashWorkbench.manageSuppressions",
+        "title": "ASH: Manage Suppressions"
       }
     ],
     "menus": {

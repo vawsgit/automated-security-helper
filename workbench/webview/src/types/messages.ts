@@ -1,4 +1,4 @@
-import type { ScanSummary, ScanTarget, FindingRow, DispositionSummary, Disposition, FilterState, ApplicationInfo, SuppressionSummary, AshYamlConfigSummary, SuppressionInput, SuppressionResult } from './types';
+import type { ScanSummary, ScanTarget, FindingRow, DispositionSummary, Disposition, FilterState, ApplicationInfo, SuppressionSummary, AshYamlConfigSummary, SuppressionInput, SuppressionResult, SuppressionEntry, AshIgnorePath, AshSuppression, SuppressionWriteResult } from './types';
 
 // Extension Host -> WebView
 export type ExtToWebviewMessage =
@@ -16,7 +16,9 @@ export type ExtToWebviewMessage =
   | { type: 'applicationReset' }
   | { type: 'currentFindingsUpdate'; payload: { findings: FindingRow[]; suppressionSummary: SuppressionSummary; scanId: string; lastScannedAt: string } }
   | { type: 'ashYamlChanged'; payload: { config: AshYamlConfigSummary } }
-  | { type: 'suppressionResult'; payload: SuppressionResult };
+  | { type: 'suppressionResult'; payload: SuppressionResult }
+  | { type: 'suppressionsUpdate'; payload: { suppressions: SuppressionEntry[]; ignorePaths: AshIgnorePath[]; configInfo: AshYamlConfigSummary } }
+  | { type: 'suppressionWriteResult'; payload: SuppressionWriteResult };
 
 // WebView -> Extension Host
 export type WebviewToExtMessage =
@@ -39,4 +41,8 @@ export type WebviewToExtMessage =
   | { type: 'resetApplication' }
   | { type: 'requestCurrentFindings' }
   | { type: 'suppressFinding'; payload: SuppressionInput }
-  | { type: 'unsuppressFinding'; payload: { findingId: string } };
+  | { type: 'unsuppressFinding'; payload: { findingId: string } }
+  | { type: 'requestSuppressions' }
+  | { type: 'editSuppression'; payload: { old: AshSuppression; updated: AshSuppression } }
+  | { type: 'removeSuppression'; payload: { suppression: AshSuppression } }
+  | { type: 'addSuppression'; payload: { suppression: AshSuppression } };

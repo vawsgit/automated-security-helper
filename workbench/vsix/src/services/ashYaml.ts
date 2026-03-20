@@ -3,6 +3,8 @@ import type {
   AshSuppression,
   AshYamlConfig,
   FindingRow,
+  SuppressionEntry,
+  MatchedFindingRef,
 } from '../models/types';
 import {
   DEFAULT_CONFIG,
@@ -11,6 +13,10 @@ import {
   parseConfigFile,
   findMatchingSuppression,
   batchMatchSuppressions,
+  isExpired,
+  matchesRuleId,
+  matchesFilePath,
+  matchesLineRange,
 } from './ashYamlCore';
 
 // Re-export pure functions for consumers that import from this module
@@ -60,6 +66,48 @@ export class AshYamlService implements vscode.Disposable {
 
   getMatchingSuppressions(findings: FindingRow[]): Map<string, AshSuppression> {
     return batchMatchSuppressions(findings, this.config.suppressions);
+  }
+
+  getSuppressionStatuses(findings: FindingRow[]): SuppressionEntry[] {
+    const suppressions = this.config.suppressions;
+    return suppressions.map((suppression) => {
+      const expired = isExpired(suppression.expiration);
+      const matchedFindings: MatchedFindingRef[] = [];
+
+      if (!expired) {
+        for (const finding of findings) {
+          if (
+            matchesRuleId(finding.ruleId, suppression.rule_id) &&
+            matchesFilePath(finding.filePath, suppression.path) &&
+            matchesLineRange(finding, suppression)
+          ) {
+            matchedFindings.push({
+              id: finding.id,
+              severity: finding.severity,
+              title: finding.title,
+              file: finding.filePath,
+              line: finding.startLine > 0 ? finding.startLine : null,
+            });
+          }
+        }
+      }
+
+      let status: 'active' | 'unused' | 'expired';
+      if (expired) {
+        status = 'expired';
+      } else if (matchedFindings.length > 0) {
+        status = 'active';
+      } else {
+        status = 'unused';
+      }
+
+      return {
+        ...suppression,
+        status,
+        matchCount: matchedFindings.length,
+        matchedFindings,
+      };
+    });
   }
 
   setScanRoot(newRoot: string): void {

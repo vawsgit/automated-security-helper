@@ -8,13 +8,15 @@ import { ScanHistoryView } from './components/ScanHistoryView';
 import { ScanDetailView } from './components/ScanDetailView';
 import { ScanProgressView } from './components/ScanProgressView';
 import { EmptyStateView } from './components/EmptyStateView';
+import { SuppressionManagerView } from './components/SuppressionManagerView';
 import SinkPage from './pages/sink/SinkPage';
 import type { ExtToWebviewMessage } from './types/messages';
-import type { Project, ScanTarget, ScanSummary, FindingRow, DispositionSummary, Disposition, SuppressionSummary, AshYamlConfigSummary } from './types/types';
+import type { Project, ScanTarget, ScanSummary, FindingRow, DispositionSummary, Disposition, SuppressionSummary, AshYamlConfigSummary, SuppressionEntry, AshIgnorePath } from './types/types';
 
 type ViewState =
   | 'loading' | 'dashboard' | 'findingList' | 'findingDetail'
-  | 'scanHistory' | 'scanDetail' | 'scanProgress' | 'empty';
+  | 'scanHistory' | 'scanDetail' | 'scanProgress' | 'empty'
+  | 'suppressionManager';
 
 interface AppState {
   context: 'sidebar' | 'editorPanel' | 'sink' | 'unknown';
@@ -38,6 +40,11 @@ interface AppState {
   ashYamlConfig: AshYamlConfigSummary | undefined;
   suppressionFormFindingId: string | null;
   suppressionPending: boolean;
+  suppressions: SuppressionEntry[];
+  ignorePaths: AshIgnorePath[];
+  suppressionManagerConfig: AshYamlConfigSummary | null;
+  editingSuppressionIndex: number | null;
+  addingNewSuppression: boolean;
 }
 
 type AppAction =
@@ -55,6 +62,10 @@ type AppAction =
   | { type: 'OPEN_SUPPRESSION_FORM'; findingId: string }
   | { type: 'CLOSE_SUPPRESSION_FORM' }
   | { type: 'SET_SUPPRESSION_PENDING'; pending: boolean }
+  | { type: 'OPEN_SUPPRESSION_EDIT'; index: number }
+  | { type: 'CLOSE_SUPPRESSION_EDIT' }
+  | { type: 'START_ADD_SUPPRESSION' }
+  | { type: 'CANCEL_ADD_SUPPRESSION' }
   | { type: 'BACK' }
   | { type: 'BACK_TO_LIST' };
 
@@ -88,6 +99,11 @@ const initialState: AppState = {
   ashYamlConfig: undefined,
   suppressionFormFindingId: null,
   suppressionPending: false,
+  suppressions: [],
+  ignorePaths: [],
+  suppressionManagerConfig: null,
+  editingSuppressionIndex: null,
+  addingNewSuppression: false,
 };
 
 function reducer(state: AppState, action: AppAction): AppState {
@@ -152,12 +168,29 @@ function reducer(state: AppState, action: AppAction): AppState {
             view: state.view === 'loading' ? 'dashboard' : state.view,
           };
         case 'ashYamlChanged':
+          // Reactive refresh: if viewing suppression manager, re-request data
+          if (state.view === 'suppressionManager') {
+            postMessage({ type: 'requestSuppressions' });
+          }
           return { ...state, ashYamlConfig: msg.payload.config };
         case 'suppressionResult':
           if (msg.payload.success) {
             return { ...state, suppressionFormFindingId: null, suppressionPending: false };
           }
           return { ...state, suppressionPending: false };
+        case 'suppressionsUpdate':
+          return {
+            ...state,
+            suppressions: msg.payload.suppressions,
+            ignorePaths: msg.payload.ignorePaths,
+            suppressionManagerConfig: msg.payload.configInfo,
+            view: state.view === 'loading' ? 'suppressionManager' : state.view,
+          };
+        case 'suppressionWriteResult':
+          if (msg.payload.success) {
+            return { ...state, editingSuppressionIndex: null, addingNewSuppression: false };
+          }
+          return state;
         default:
           return state;
       }
@@ -242,6 +275,14 @@ function reducer(state: AppState, action: AppAction): AppState {
       return { ...state, suppressionFormFindingId: null, suppressionPending: false };
     case 'SET_SUPPRESSION_PENDING':
       return { ...state, suppressionPending: action.pending };
+    case 'OPEN_SUPPRESSION_EDIT':
+      return { ...state, editingSuppressionIndex: action.index, addingNewSuppression: false };
+    case 'CLOSE_SUPPRESSION_EDIT':
+      return { ...state, editingSuppressionIndex: null };
+    case 'START_ADD_SUPPRESSION':
+      return { ...state, addingNewSuppression: true, editingSuppressionIndex: null };
+    case 'CANCEL_ADD_SUPPRESSION':
+      return { ...state, addingNewSuppression: false };
     case 'BACK': {
       const history = [...state.viewHistory];
       const prev = history.pop() ?? 'dashboard';
@@ -255,13 +296,28 @@ function reducer(state: AppState, action: AppAction): AppState {
 }
 
 function EditorPanel({ state, dispatch }: { state: AppState; dispatch: React.Dispatch<AppAction> }) {
-  const navigate = (view: ViewState) => dispatch({ type: 'NAVIGATE', view });
+  const navigate = (view: ViewState) => {
+    dispatch({ type: 'NAVIGATE', view });
+    if (view === 'suppressionManager') {
+      postMessage({ type: 'requestSuppressions' });
+    }
+  };
   const navigateDashboard = () => {
     dispatch({ type: 'CLEAR_SCAN_TARGET' });
     dispatch({ type: 'NAVIGATE', view: 'dashboard' });
   };
   const navigateFindings = () => dispatch({ type: 'NAVIGATE', view: 'findingList' });
   const navigateScans = () => dispatch({ type: 'NAVIGATE', view: 'scanHistory' });
+
+  // Compute autocomplete suggestions from current findings
+  const knownPaths = useMemo(() =>
+    [...new Set(state.currentFindings.map(f => f.filePath).filter(Boolean))],
+    [state.currentFindings]
+  );
+  const knownRuleIds = useMemo(() =>
+    [...new Set(state.currentFindings.map(f => f.ruleId).filter(Boolean))],
+    [state.currentFindings]
+  );
 
   const selectScanTarget = (scanTargetId: string) => {
     dispatch({ type: 'SELECT_SCAN_TARGET', scanTargetId });
@@ -397,6 +453,40 @@ function EditorPanel({ state, dispatch }: { state: AppState; dispatch: React.Dis
             onNavigateScans={navigateScans}
           />
         );
+      case 'suppressionManager':
+        return (
+          <SuppressionManagerView
+            suppressions={state.suppressions}
+            ignorePaths={state.ignorePaths}
+            configInfo={state.suppressionManagerConfig}
+            currentFindings={state.currentFindings}
+            editingSuppressionIndex={state.editingSuppressionIndex}
+            addingNewSuppression={state.addingNewSuppression}
+            knownPaths={knownPaths}
+            knownRuleIds={knownRuleIds}
+            onEdit={(index) => dispatch({ type: 'OPEN_SUPPRESSION_EDIT', index })}
+            onCloseEdit={() => dispatch({ type: 'CLOSE_SUPPRESSION_EDIT' })}
+            onSaveEdit={(old, updated) => {
+              postMessage({ type: 'editSuppression', payload: { old, updated } });
+            }}
+            onRemove={(suppression) => {
+              postMessage({ type: 'removeSuppression', payload: { suppression } });
+            }}
+            onAdd={(suppression) => {
+              postMessage({ type: 'addSuppression', payload: { suppression } });
+            }}
+            onStartAdd={() => dispatch({ type: 'START_ADD_SUPPRESSION' })}
+            onCancelAdd={() => dispatch({ type: 'CANCEL_ADD_SUPPRESSION' })}
+            onFindingClick={(findingId) => {
+              const finding = state.currentFindings.find(f => f.id === findingId);
+              if (finding) {
+                dispatch({ type: 'NAVIGATE', view: 'findingDetail' });
+                dispatch({ type: 'MESSAGE', payload: { type: 'findingDetail', payload: finding } });
+              }
+            }}
+            onNavigateDashboard={navigateDashboard}
+          />
+        );
       case 'empty':
         return (
           <EmptyStateView
@@ -444,6 +534,7 @@ function App() {
         currentFindings={state.currentFindings}
         suppressionSummary={state.suppressionSummary}
         lastScannedAt={state.lastScannedAt}
+        ashYamlConfig={state.ashYamlConfig}
       />
     );
   }
