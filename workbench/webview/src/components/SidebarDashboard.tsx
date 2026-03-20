@@ -63,7 +63,7 @@ export function SidebarDashboard({ scans, summary, scanTargets, currentFindings,
         onClick={() => postMessage({ type: 'requestSuppressions' })}
       >
         <Shield className="h-3.5 w-3.5 mr-1.5" />
-        Manage Suppressions ({ashYamlConfig?.suppressionCount ?? 0} rules)
+        Suppressions ({ashYamlConfig?.suppressionCount ?? 0})
       </Button>
 
       {/* Active scan indicator */}

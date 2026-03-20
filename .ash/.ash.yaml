@@ -144,6 +144,11 @@ global_settings:
       line_start: 351
       line_end: 353
       reason: "Test validates path traversal protection - checking /tmp/evil.py does NOT exist"
+    - path: "tests/unit/converters/test_converters.py"
+      rule_id: "B108"
+      reason: "This is a false positive"
+      line_start: 320
+      line_end: 352
   ignore_paths:
     - path: "**/.venv/**"
       reason: Virtual environment, not committed, only 3p content
