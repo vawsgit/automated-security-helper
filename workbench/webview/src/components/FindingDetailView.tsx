@@ -18,7 +18,7 @@ import { FindingNavigation } from './FindingNavigation';
 import { ExternalLink, Sparkles } from 'lucide-react';
 import { SuppressionForm } from './SuppressionForm';
 import { postMessage } from '../hooks/useVSCodeAPI';
-import type { FindingRow, Disposition, SuppressionInput } from '../types/types';
+import type { FindingRow, Disposition, SuppressionInput, SuppressionScope } from '../types/types';
 import type { AnalysisUIState } from '../App';
 
 const ERROR_GUIDANCE: Record<string, string> = {
@@ -49,6 +49,14 @@ interface FindingDetailViewProps {
   onOpenSuppressionForm?: (findingId: string) => void;
   onCloseSuppressionForm?: () => void;
   onSetSuppressionPending?: (pending: boolean) => void;
+  // Suppression Message Generation (Spec 025)
+  isGenerating?: boolean;
+  generatedMessage?: string | null;
+  generationError?: string | null;
+  claudeSettingsDetected?: boolean;
+  onGenerateMessage?: (scope: SuppressionScope, mode: 'generate' | 'regenerate') => void;
+  onRefineMessage?: (scope: SuppressionScope, existingMessage: string) => void;
+  onClearGeneratedMessage?: () => void;
 }
 
 function formatDate(iso: string): string {
@@ -72,6 +80,13 @@ export function FindingDetailView({
   onOpenSuppressionForm,
   onCloseSuppressionForm,
   onSetSuppressionPending,
+  isGenerating,
+  generatedMessage,
+  generationError,
+  claudeSettingsDetected,
+  onGenerateMessage,
+  onRefineMessage,
+  onClearGeneratedMessage,
 }: FindingDetailViewProps) {
   const highlightLines = [];
   for (let i = finding.startLine; i <= finding.endLine; i++) {
@@ -278,6 +293,13 @@ export function FindingDetailView({
                   postMessage({ type: 'suppressFinding', payload: input });
                 }}
                 onCancel={() => onCloseSuppressionForm?.()}
+                isGenerating={isGenerating}
+                generatedMessage={generatedMessage}
+                generationError={generationError}
+                claudeSettingsDetected={claudeSettingsDetected}
+                onGenerateMessage={onGenerateMessage}
+                onRefineMessage={onRefineMessage}
+                onClearGeneratedMessage={onClearGeneratedMessage}
               />
             ) : (
               <Button

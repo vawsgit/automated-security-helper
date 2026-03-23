@@ -2,6 +2,8 @@ import * as vscode from 'vscode';
 import type { AiProvider, ConnectionTestResult, AnalysisEvent } from './aiProvider';
 import type { FindingsService } from './findings';
 import { createFindingMcpServer } from './mcpTools';
+import type { SuppressionScope, GenerationMode, SuppressionMessageResult } from '../models/types';
+import { buildSuppressionPrompt, assembleMessage } from './suppressionPromptBuilder';
 
 const MAX_CONCURRENT_ANALYSES = 5;
 
@@ -439,6 +441,61 @@ export class AiService implements vscode.Disposable {
     } finally {
       this.activeAnalyses.delete(findingId);
     }
+  }
+
+  async generateSuppressionMessage(
+    findingId: string,
+    scope: SuppressionScope,
+    mode: GenerationMode,
+    existingMessage?: string,
+  ): Promise<SuppressionMessageResult> {
+    this.log(`Generating suppression message for ${findingId} (scope=${scope}, mode=${mode})`);
+
+    const finding = await this.findingsService.getFindingDetail(findingId);
+    if (!finding) {
+      throw new Error(`Finding not found: ${findingId}`);
+    }
+
+    const { systemPrompt, schema } = buildSuppressionPrompt(finding, scope, mode, existingMessage);
+
+    // Ensure provider is initialized (we need config for buildQueryOptions)
+    await this.ensureProvider();
+    const config = this.getConfig();
+
+    const { query } = await import('@anthropic-ai/claude-agent-sdk');
+    const { buildQueryOptions } = await import('./claudeAgentProvider.js');
+
+    const options: Record<string, unknown> = {
+      ...buildQueryOptions(config),
+      maxTurns: 1,
+      maxBudgetUsd: 0.05,
+      permissionMode: 'dontAsk',
+      allowedTools: [] as string[],
+      outputFormat: { type: 'json_schema', schema },
+    };
+
+    type SDKMessage = { type: string; subtype?: string; structured_output?: unknown; errors?: string[]; [key: string]: unknown };
+
+    const messages = query({
+      prompt: systemPrompt,
+      options: options as never,
+    });
+
+    for await (const raw of messages) {
+      const message = raw as SDKMessage;
+      if (message.type === 'result') {
+        if (message.subtype === 'success' && message.structured_output && typeof message.structured_output === 'object') {
+          const sections = message.structured_output as { finding: string; riskAssessment: string; rationale: string; scope: string };
+          const assembled = assembleMessage(sections);
+          this.log(`Suppression message generated for ${findingId}`);
+          return { findingId, message: assembled, sections };
+        }
+        const errorMsg = Array.isArray(message.errors) ? message.errors.join('; ') : 'Generation failed — no structured output returned';
+        throw new Error(errorMsg);
+      }
+    }
+
+    throw new Error('Generation failed — no result received from AI');
   }
 
   cancelBatchAnalysis(scanId: string): void {

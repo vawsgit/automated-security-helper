@@ -1,4 +1,4 @@
-import type { ScanSummary, ScanTarget, FindingRow, DispositionSummary, Disposition, FilterState, ApplicationInfo, SuppressionSummary, AshYamlConfigSummary, SuppressionInput, SuppressionResult, SuppressionEntry, AshIgnorePath, AshSuppression, SuppressionWriteResult, AiAnalysis, AnalysisMetadata } from './types';
+import type { ScanSummary, ScanTarget, FindingRow, DispositionSummary, Disposition, FilterState, ApplicationInfo, SuppressionSummary, AshYamlConfigSummary, SuppressionInput, SuppressionResult, SuppressionEntry, AshIgnorePath, AshSuppression, SuppressionWriteResult, AiAnalysis, AnalysisMetadata, SuppressionScope, SuppressionMessageResult } from './types';
 
 // Extension Host -> WebView
 export type ExtToWebviewMessage =
@@ -28,7 +28,10 @@ export type ExtToWebviewMessage =
   // Batch Analysis (Spec 023)
   | { type: 'batchAnalysisStarted'; payload: { scanId: string; totalFindings: number; findingIds: string[] } }
   | { type: 'batchAnalysisProgress'; payload: { scanId: string; currentIndex: number; totalFindings: number; currentFindingId: string } }
-  | { type: 'batchAnalysisComplete'; payload: { scanId: string; analyzedCount: number; failedCount: number; skippedCount: number; status: 'completed' | 'cancelled' | 'consecutive-failures' | 'error' } };
+  | { type: 'batchAnalysisComplete'; payload: { scanId: string; analyzedCount: number; failedCount: number; skippedCount: number; status: 'completed' | 'cancelled' | 'consecutive-failures' | 'error' } }
+  // Suppression Message Generation (Spec 025)
+  | { type: 'suppressionMessageResult'; payload: SuppressionMessageResult }
+  | { type: 'suppressionMessageError'; payload: { findingId: string; errorType: string; message: string } };
 
 // WebView -> Extension Host
 export type WebviewToExtMessage =
@@ -62,4 +65,7 @@ export type WebviewToExtMessage =
   | { type: 'cancelAiAnalysis'; payload: { findingId: string } }
   // Batch Analysis (Spec 023)
   | { type: 'analyzeAllFindings'; payload: { scanId: string } }
-  | { type: 'cancelBatchAnalysis'; payload: { scanId: string } };
+  | { type: 'cancelBatchAnalysis'; payload: { scanId: string } }
+  // Suppression Message Generation (Spec 025)
+  | { type: 'generateSuppressionMessage'; payload: { findingId: string; scope: SuppressionScope; mode: 'generate' | 'regenerate' } }
+  | { type: 'refineSuppressionMessage'; payload: { findingId: string; scope: SuppressionScope; existingMessage: string } };

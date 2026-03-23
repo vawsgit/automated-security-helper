@@ -72,6 +72,10 @@ interface AppState {
   analysisStates: Record<string, AnalysisUIState>;
   // Batch Analysis (Spec 023)
   batchAnalysisState: BatchAnalysisUIState | null;
+  // Suppression Message Generation (Spec 025)
+  suppressionMessageGenerating: boolean;
+  suppressionGeneratedMessage: string | null;
+  suppressionMessageError: string | null;
 }
 
 export type AppAction =
@@ -95,6 +99,9 @@ export type AppAction =
   | { type: 'CANCEL_ADD_SUPPRESSION' }
   | { type: 'SET_AI_TEST_STATUS'; status: 'testing' }
   | { type: 'DISMISS_ANALYSIS_ERROR'; findingId: string }
+  | { type: 'SUPPRESSION_MESSAGE_GENERATING' }
+  | { type: 'SUPPRESSION_MESSAGE_ERROR'; error: string }
+  | { type: 'CLEAR_SUPPRESSION_MESSAGE' }
   | { type: 'BACK' }
   | { type: 'BACK_TO_LIST' };
 
@@ -142,6 +149,10 @@ export const initialState: AppState = {
   analysisStates: {},
   // Batch Analysis (Spec 023)
   batchAnalysisState: null,
+  // Suppression Message Generation (Spec 025)
+  suppressionMessageGenerating: false,
+  suppressionGeneratedMessage: null,
+  suppressionMessageError: null,
 };
 
 /** @internal Exported for testing only */
@@ -300,6 +311,20 @@ export function reducer(state: AppState, action: AppAction): AppState {
               ? { ...state.batchAnalysisState, status: msg.payload.status, analyzedCount: msg.payload.analyzedCount, failedCount: msg.payload.failedCount, skippedCount: msg.payload.skippedCount }
               : state.batchAnalysisState,
           };
+        // Suppression Message Generation (Spec 025)
+        case 'suppressionMessageResult':
+          return {
+            ...state,
+            suppressionMessageGenerating: false,
+            suppressionGeneratedMessage: msg.payload.message,
+            suppressionMessageError: null,
+          };
+        case 'suppressionMessageError':
+          return {
+            ...state,
+            suppressionMessageGenerating: false,
+            suppressionMessageError: msg.payload.message,
+          };
         default:
           return state;
       }
@@ -387,7 +412,7 @@ export function reducer(state: AppState, action: AppAction): AppState {
     case 'OPEN_SUPPRESSION_FORM':
       return { ...state, suppressionFormFindingId: action.findingId, suppressionPending: false };
     case 'CLOSE_SUPPRESSION_FORM':
-      return { ...state, suppressionFormFindingId: null, suppressionPending: false };
+      return { ...state, suppressionFormFindingId: null, suppressionPending: false, suppressionMessageGenerating: false, suppressionGeneratedMessage: null, suppressionMessageError: null };
     case 'SET_SUPPRESSION_PENDING':
       return { ...state, suppressionPending: action.pending };
     case 'OPEN_SUPPRESSION_EDIT':
@@ -404,6 +429,12 @@ export function reducer(state: AppState, action: AppAction): AppState {
       const { [action.findingId]: _dismissed, ...remaining } = state.analysisStates;
       return { ...state, analysisStates: remaining };
     }
+    case 'SUPPRESSION_MESSAGE_GENERATING':
+      return { ...state, suppressionMessageGenerating: true, suppressionMessageError: null };
+    case 'SUPPRESSION_MESSAGE_ERROR':
+      return { ...state, suppressionMessageGenerating: false, suppressionMessageError: action.error };
+    case 'CLEAR_SUPPRESSION_MESSAGE':
+      return { ...state, suppressionGeneratedMessage: null, suppressionMessageError: null };
     case 'BACK': {
       const history = [...state.viewHistory];
       const prev = history.pop() ?? 'dashboard';
@@ -557,6 +588,23 @@ function EditorPanel({ state, dispatch }: { state: AppState; dispatch: React.Dis
             }
             onSetSuppressionPending={(pending) =>
               dispatch({ type: 'SET_SUPPRESSION_PENDING', pending })
+            }
+            isGenerating={state.suppressionMessageGenerating}
+            generatedMessage={state.suppressionGeneratedMessage}
+            generationError={state.suppressionMessageError}
+            claudeSettingsDetected={state.claudeSettingsDetected}
+            onGenerateMessage={(scope, mode) => {
+              dispatch({ type: 'SUPPRESSION_MESSAGE_GENERATING' });
+              if (mode === 'generate' || mode === 'regenerate') {
+                postMessage({ type: 'generateSuppressionMessage', payload: { findingId: state.selectedFinding!.id, scope, mode } });
+              }
+            }}
+            onRefineMessage={(scope, existingMessage) => {
+              dispatch({ type: 'SUPPRESSION_MESSAGE_GENERATING' });
+              postMessage({ type: 'refineSuppressionMessage', payload: { findingId: state.selectedFinding!.id, scope, existingMessage } });
+            }}
+            onClearGeneratedMessage={() =>
+              dispatch({ type: 'CLEAR_SUPPRESSION_MESSAGE' })
             }
           />
         );

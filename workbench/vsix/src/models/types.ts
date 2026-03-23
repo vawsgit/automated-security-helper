@@ -215,3 +215,20 @@ export interface StoredAiAnalysis {
   analysis: AiAnalysis;
   metadata: AnalysisMetadata;
 }
+
+// Suppression Message Generation (Spec 025)
+
+export type GenerationMode = 'generate' | 'regenerate' | 'refine';
+
+export interface StructuredJustification {
+  finding: string;
+  riskAssessment: string;
+  rationale: string;
+  scope: string;
+}
+
+export interface SuppressionMessageResult {
+  findingId: string;
+  message: string;
+  sections: StructuredJustification;
+}

@@ -607,6 +607,51 @@ export class FindingsPanelManager {
         }
         break;
       }
+      case 'generateSuppressionMessage': {
+        if (this.aiService) {
+          try {
+            const result = await this.aiService.generateSuppressionMessage(
+              message.payload.findingId,
+              message.payload.scope,
+              message.payload.mode,
+            );
+            this.panel?.webview.postMessage({ type: 'suppressionMessageResult', payload: result });
+          } catch (err) {
+            this.panel?.webview.postMessage({
+              type: 'suppressionMessageError',
+              payload: {
+                findingId: message.payload.findingId,
+                errorType: 'unknown',
+                message: err instanceof Error ? err.message : 'Generation failed',
+              },
+            });
+          }
+        }
+        break;
+      }
+      case 'refineSuppressionMessage': {
+        if (this.aiService) {
+          try {
+            const result = await this.aiService.generateSuppressionMessage(
+              message.payload.findingId,
+              message.payload.scope,
+              'refine',
+              message.payload.existingMessage,
+            );
+            this.panel?.webview.postMessage({ type: 'suppressionMessageResult', payload: result });
+          } catch (err) {
+            this.panel?.webview.postMessage({
+              type: 'suppressionMessageError',
+              payload: {
+                findingId: message.payload.findingId,
+                errorType: 'unknown',
+                message: err instanceof Error ? err.message : 'Refinement failed',
+              },
+            });
+          }
+        }
+        break;
+      }
       case 'navigateToCode': {
         const filePath = message.payload.filePath;
         const workspaceRoot = this.scanRootService?.getEffectiveScanRoot()
