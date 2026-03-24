@@ -1,4 +1,4 @@
-import type { ScanSummary, ScanTarget, FindingRow, DispositionSummary, Disposition, FilterState, ApplicationInfo, SuppressionSummary, AshYamlConfigSummary, SuppressionInput, SuppressionResult, SuppressionEntry, AshIgnorePath, AshSuppression, SuppressionWriteResult, AiAnalysis, AnalysisMetadata, SuppressionScope, SuppressionMessageResult } from './types';
+import type { ScanSummary, ScanTarget, FindingRow, DispositionSummary, Disposition, FilterState, ApplicationInfo, SuppressionSummary, AshYamlConfigSummary, SuppressionInput, SuppressionResult, SuppressionEntry, AshIgnorePath, AshSuppression, SuppressionWriteResult, AiAnalysis, AnalysisMetadata, SuppressionScope, SuppressionMessageResult, TriageClassification, TriageMetadata, TriageSummary } from './types';
 
 // Extension Host -> WebView
 export type ExtToWebviewMessage =
@@ -31,7 +31,18 @@ export type ExtToWebviewMessage =
   | { type: 'batchAnalysisComplete'; payload: { scanId: string; analyzedCount: number; failedCount: number; skippedCount: number; status: 'completed' | 'cancelled' | 'consecutive-failures' | 'error' } }
   // Suppression Message Generation (Spec 025)
   | { type: 'suppressionMessageResult'; payload: SuppressionMessageResult }
-  | { type: 'suppressionMessageError'; payload: { findingId: string; errorType: string; message: string } };
+  | { type: 'suppressionMessageError'; payload: { findingId: string; errorType: string; message: string } }
+  // Repairability Triage (Spec 026)
+  | { type: 'triageSummaryUpdate'; payload: { summary: TriageSummary } }
+  | { type: 'triageClassificationStarted'; payload: { totalFindings: number; findingIds: string[] } }
+  | { type: 'triageClassificationProgress'; payload: { currentIndex: number; totalFindings: number; currentFindingId: string; status: 'classifying' | 'skipped' | 'failed'; message?: string } }
+  | { type: 'triageClassificationResult'; payload: { findingId: string; analysis: TriageClassification; metadata: TriageMetadata } }
+  | { type: 'triageClassificationError'; payload: { findingId: string; errorType: string; message: string } }
+  | { type: 'triageClassificationComplete'; payload: { analyzedCount: number; failedCount: number; skippedCount: number; status: 'completed' | 'cancelled' | 'consecutive-failures' | 'error' } }
+  | { type: 'triageFixApplied'; payload: { findingId: string; filePath: string; disposition: 'FIX' } }
+  | { type: 'triageFixError'; payload: { findingId: string; errorType: 'stale_code' | 'file_not_found' | 'write_error' | 'path_validation'; message: string } }
+  | { type: 'triageSuppressed'; payload: { findingId: string; disposition: 'SUPPRESS' } }
+  | { type: 'triageSuppressionError'; payload: { findingId: string; errorType: string; message: string } };
 
 // WebView -> Extension Host
 export type WebviewToExtMessage =
@@ -68,4 +79,13 @@ export type WebviewToExtMessage =
   | { type: 'cancelBatchAnalysis'; payload: { scanId: string } }
   // Suppression Message Generation (Spec 025)
   | { type: 'generateSuppressionMessage'; payload: { findingId: string; scope: SuppressionScope; mode: 'generate' | 'regenerate' } }
-  | { type: 'refineSuppressionMessage'; payload: { findingId: string; scope: SuppressionScope; existingMessage: string } };
+  | { type: 'refineSuppressionMessage'; payload: { findingId: string; scope: SuppressionScope; existingMessage: string } }
+  // Repairability Triage (Spec 026)
+  | { type: 'requestTriageSummary' }
+  | { type: 'startTriageClassification' }
+  | { type: 'retryTriageClassification'; payload: { findingId: string } }
+  | { type: 'cancelTriageClassification' }
+  | { type: 'applyTriageFix'; payload: { findingId: string } }
+  | { type: 'applyTriageSuppression'; payload: { findingId: string } }
+  | { type: 'requestRepairGuidance'; payload: { findingId: string } }
+  | { type: 'openTriageDashboard' };

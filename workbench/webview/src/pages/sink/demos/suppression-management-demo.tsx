@@ -175,6 +175,10 @@ const mockCurrentFindings: FindingRow[] = [
     suppression: null,
     isCurrentlySuppressed: true,
     suppressionSource: 'ash_yaml',
+    triageAnalysis: null,
+    triageMetadata: null,
+    triageFingerprint: null,
+    isTriageStale: false,
   },
   {
     id: 'f-2',
@@ -197,6 +201,10 @@ const mockCurrentFindings: FindingRow[] = [
     suppression: null,
     isCurrentlySuppressed: false,
     suppressionSource: null,
+    triageAnalysis: null,
+    triageMetadata: null,
+    triageFingerprint: null,
+    isTriageStale: false,
   },
 ];
 

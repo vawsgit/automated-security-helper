@@ -24,6 +24,10 @@ const baseFinding: FindingRow = {
   suppression: null,
   isCurrentlySuppressed: false,
   suppressionSource: null,
+  triageAnalysis: null,
+  triageMetadata: null,
+  triageFingerprint: null,
+  isTriageStale: false,
 };
 
 const findingWithAiAnalysis: FindingRow = {

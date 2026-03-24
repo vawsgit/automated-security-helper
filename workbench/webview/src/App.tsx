@@ -9,14 +9,16 @@ import { ScanDetailView } from './components/ScanDetailView';
 import { ScanProgressView } from './components/ScanProgressView';
 import { EmptyStateView } from './components/EmptyStateView';
 import { SuppressionManagerView } from './components/SuppressionManagerView';
+import { TriageDashboardView } from './components/TriageDashboardView';
+import { TriageDrillDownView } from './components/TriageDrillDownView';
 import SinkPage from './pages/sink/SinkPage';
 import type { ExtToWebviewMessage } from './types/messages';
-import type { Project, ScanTarget, ScanSummary, FindingRow, DispositionSummary, Disposition, SuppressionSummary, AshYamlConfigSummary, SuppressionEntry, AshIgnorePath } from './types/types';
+import type { Project, ScanTarget, ScanSummary, FindingRow, DispositionSummary, Disposition, SuppressionSummary, AshYamlConfigSummary, SuppressionEntry, AshIgnorePath, TriageSummary, TriageCategory, Severity } from './types/types';
 
 type ViewState =
   | 'loading' | 'dashboard' | 'findingList' | 'findingDetail'
   | 'scanHistory' | 'scanDetail' | 'scanProgress' | 'empty'
-  | 'suppressionManager';
+  | 'suppressionManager' | 'triageDashboard' | 'triageDrillDown';
 
 export interface AnalysisUIState {
   status: 'analyzing' | 'error';
@@ -34,6 +36,17 @@ export interface BatchAnalysisUIState {
   analyzedCount: number;
   failedCount: number;
   skippedCount: number;
+}
+
+export interface TriageBatchUIState {
+  status: 'running' | 'completed' | 'cancelled' | 'consecutive-failures' | 'error';
+  totalFindings: number;
+  currentIndex: number;
+  currentFindingId?: string;
+  analyzedCount: number;
+  failedCount: number;
+  skippedCount: number;
+  message?: string;
 }
 
 interface AppState {
@@ -76,6 +89,13 @@ interface AppState {
   suppressionMessageGenerating: boolean;
   suppressionGeneratedMessage: string | null;
   suppressionMessageError: string | null;
+  // Repairability Triage (Spec 026)
+  triageSummary: TriageSummary | null;
+  triageClassificationState: TriageBatchUIState | null;
+  triageDrillDownFilter: { severity: Severity; category: TriageCategory } | null;
+  triageSelectedFindingId: string | null;
+  triageActionErrors: Record<string, string>;
+  triageActionSuccess: Record<string, string>;
 }
 
 export type AppAction =
@@ -102,6 +122,8 @@ export type AppAction =
   | { type: 'SUPPRESSION_MESSAGE_GENERATING' }
   | { type: 'SUPPRESSION_MESSAGE_ERROR'; error: string }
   | { type: 'CLEAR_SUPPRESSION_MESSAGE' }
+  | { type: 'NAVIGATE_TRIAGE_DRILLDOWN'; severity: Severity; category: TriageCategory }
+  | { type: 'SELECT_TRIAGE_FINDING'; findingId: string }
   | { type: 'BACK' }
   | { type: 'BACK_TO_LIST' };
 
@@ -153,6 +175,13 @@ export const initialState: AppState = {
   suppressionMessageGenerating: false,
   suppressionGeneratedMessage: null,
   suppressionMessageError: null,
+  // Repairability Triage (Spec 026)
+  triageSummary: null,
+  triageClassificationState: null,
+  triageDrillDownFilter: null,
+  triageSelectedFindingId: null,
+  triageActionErrors: {},
+  triageActionSuccess: {},
 };
 
 /** @internal Exported for testing only */
@@ -325,6 +354,86 @@ export function reducer(state: AppState, action: AppAction): AppState {
             suppressionMessageGenerating: false,
             suppressionMessageError: msg.payload.message,
           };
+        // Repairability Triage (Spec 026)
+        case 'triageSummaryUpdate':
+          return { ...state, triageSummary: msg.payload.summary };
+        case 'triageClassificationStarted':
+          return {
+            ...state,
+            triageClassificationState: {
+              status: 'running',
+              totalFindings: msg.payload.totalFindings,
+              currentIndex: 0,
+              analyzedCount: 0,
+              failedCount: 0,
+              skippedCount: 0,
+            },
+          };
+        case 'triageClassificationProgress':
+          return {
+            ...state,
+            triageClassificationState: state.triageClassificationState
+              ? { ...state.triageClassificationState, currentIndex: msg.payload.currentIndex, currentFindingId: msg.payload.currentFindingId, message: msg.payload.message }
+              : state.triageClassificationState,
+          };
+        case 'triageClassificationResult': {
+          const updateTriage = (list: FindingRow[]) =>
+            list.map(f => f.id === msg.payload.findingId
+              ? { ...f, triageAnalysis: msg.payload.analysis, triageMetadata: msg.payload.metadata }
+              : f);
+          const updatedTriageSelected = state.selectedFinding?.id === msg.payload.findingId
+            ? { ...state.selectedFinding, triageAnalysis: msg.payload.analysis, triageMetadata: msg.payload.metadata }
+            : state.selectedFinding;
+          return { ...state, findings: updateTriage(state.findings), currentFindings: updateTriage(state.currentFindings), selectedFinding: updatedTriageSelected };
+        }
+        case 'triageClassificationError':
+          return {
+            ...state,
+            triageActionErrors: { ...state.triageActionErrors, [msg.payload.findingId]: msg.payload.message },
+          };
+        case 'triageClassificationComplete':
+          return {
+            ...state,
+            triageClassificationState: state.triageClassificationState
+              ? { ...state.triageClassificationState, status: msg.payload.status, analyzedCount: msg.payload.analyzedCount, failedCount: msg.payload.failedCount, skippedCount: msg.payload.skippedCount }
+              : state.triageClassificationState,
+          };
+        case 'triageSuppressed': {
+          const updateDisp = (list: FindingRow[]) =>
+            list.map(f => f.id === msg.payload.findingId ? { ...f, disposition: msg.payload.disposition } : f);
+          return {
+            ...state,
+            findings: updateDisp(state.findings),
+            currentFindings: updateDisp(state.currentFindings),
+            selectedFinding: state.selectedFinding?.id === msg.payload.findingId
+              ? { ...state.selectedFinding, disposition: msg.payload.disposition }
+              : state.selectedFinding,
+            triageActionSuccess: { ...state.triageActionSuccess, [msg.payload.findingId]: 'Suppressed' },
+          };
+        }
+        case 'triageSuppressionError':
+          return {
+            ...state,
+            triageActionErrors: { ...state.triageActionErrors, [msg.payload.findingId]: msg.payload.message },
+          };
+        case 'triageFixApplied': {
+          const updateFix = (list: FindingRow[]) =>
+            list.map(f => f.id === msg.payload.findingId ? { ...f, disposition: msg.payload.disposition } : f);
+          return {
+            ...state,
+            findings: updateFix(state.findings),
+            currentFindings: updateFix(state.currentFindings),
+            selectedFinding: state.selectedFinding?.id === msg.payload.findingId
+              ? { ...state.selectedFinding, disposition: msg.payload.disposition }
+              : state.selectedFinding,
+            triageActionSuccess: { ...state.triageActionSuccess, [msg.payload.findingId]: 'Fix applied, status will be updated next scan' },
+          };
+        }
+        case 'triageFixError':
+          return {
+            ...state,
+            triageActionErrors: { ...state.triageActionErrors, [msg.payload.findingId]: msg.payload.message },
+          };
         default:
           return state;
       }
@@ -435,6 +544,18 @@ export function reducer(state: AppState, action: AppAction): AppState {
       return { ...state, suppressionMessageGenerating: false, suppressionMessageError: action.error };
     case 'CLEAR_SUPPRESSION_MESSAGE':
       return { ...state, suppressionGeneratedMessage: null, suppressionMessageError: null };
+    case 'NAVIGATE_TRIAGE_DRILLDOWN':
+      return {
+        ...state,
+        viewHistory: [...state.viewHistory, state.view],
+        view: 'triageDrillDown' as ViewState,
+        triageDrillDownFilter: { severity: action.severity, category: action.category },
+        triageSelectedFindingId: null,
+        triageActionErrors: {},
+        triageActionSuccess: {},
+      };
+    case 'SELECT_TRIAGE_FINDING':
+      return { ...state, triageSelectedFindingId: action.findingId };
     case 'BACK': {
       const history = [...state.viewHistory];
       const prev = history.pop() ?? 'dashboard';
@@ -453,6 +574,9 @@ function EditorPanel({ state, dispatch }: { state: AppState; dispatch: React.Dis
     if (view === 'suppressionManager') {
       postMessage({ type: 'requestSuppressions' });
     }
+    if (view === 'triageDashboard') {
+      postMessage({ type: 'requestTriageSummary' });
+    }
   };
   const navigateDashboard = () => {
     dispatch({ type: 'CLEAR_SCAN_TARGET' });
@@ -460,6 +584,10 @@ function EditorPanel({ state, dispatch }: { state: AppState; dispatch: React.Dis
   };
   const navigateFindings = () => dispatch({ type: 'NAVIGATE', view: 'findingList' });
   const navigateScans = () => dispatch({ type: 'NAVIGATE', view: 'scanHistory' });
+  const navigateTriageDashboard = () => {
+    dispatch({ type: 'NAVIGATE', view: 'triageDashboard' });
+    postMessage({ type: 'requestTriageSummary' });
+  };
 
   // Compute autocomplete suggestions from current findings
   const knownPaths = useMemo(() =>
@@ -678,6 +806,38 @@ function EditorPanel({ state, dispatch }: { state: AppState; dispatch: React.Dis
               }
             }}
             onNavigateDashboard={navigateDashboard}
+          />
+        );
+      case 'triageDashboard':
+        return (
+          <TriageDashboardView
+            summary={state.triageSummary}
+            classificationState={state.triageClassificationState}
+            onNavigateDashboard={navigateDashboard}
+            onDrillDown={(severity, category) =>
+              dispatch({ type: 'NAVIGATE_TRIAGE_DRILLDOWN', severity, category })
+            }
+          />
+        );
+      case 'triageDrillDown':
+        if (!state.triageDrillDownFilter) {
+          navigateTriageDashboard();
+          return null;
+        }
+        return (
+          <TriageDrillDownView
+            severity={state.triageDrillDownFilter.severity}
+            category={state.triageDrillDownFilter.category}
+            findings={state.currentFindings}
+            selectedFindingId={state.triageSelectedFindingId}
+            actionErrors={state.triageActionErrors}
+            actionSuccess={state.triageActionSuccess}
+            onSelectFinding={(findingId) =>
+              dispatch({ type: 'SELECT_TRIAGE_FINDING', findingId })
+            }
+            onBack={() => dispatch({ type: 'BACK' })}
+            onNavigateDashboard={navigateDashboard}
+            onNavigateTriageDashboard={navigateTriageDashboard}
           />
         );
       case 'empty':

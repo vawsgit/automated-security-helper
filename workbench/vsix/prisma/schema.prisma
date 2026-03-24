@@ -72,8 +72,9 @@ model Finding {
   description  String
   snippet      String?
   notes        String?
-  disposition  Disposition @default(PENDING)
-  aiAnalysis   Json?
+  disposition     Disposition @default(PENDING)
+  aiAnalysis      Json?
+  triageAnalysis  Json?
 
   @@index([scanTargetId, ruleId, file])
   @@index([scanId, severity])

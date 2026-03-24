@@ -7,7 +7,7 @@ import { ScanTargetCard } from './ScanTargetCard';
 import { SeverityBadge } from './SeverityBadge';
 import { getAiErrorMessage } from '@/lib/ai-errors';
 import { postMessage } from '../hooks/useVSCodeAPI';
-import { List, History, Play, FolderTree, Shield, Cpu, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
+import { List, History, Play, FolderTree, Shield, Cpu, CheckCircle2, XCircle, Loader2, Crosshair } from 'lucide-react';
 import type { Project, ScanTarget, ScanSummary, FindingRow, DispositionSummary, Severity, SuppressionSummary } from '../types/types';
 
 interface DashboardViewProps {
@@ -24,7 +24,7 @@ interface DashboardViewProps {
   aiTestStatus: 'idle' | 'testing' | 'success' | 'error';
   aiTestResult: { success: boolean; model?: string; latencyMs: number; error?: { type: string; message: string } } | null;
   onTestConnection: () => void;
-  onNavigate: (view: 'findingList' | 'scanHistory' | 'suppressionManager') => void;
+  onNavigate: (view: 'findingList' | 'scanHistory' | 'suppressionManager' | 'triageDashboard') => void;
   onSelectScanTarget: (scanTargetId: string) => void;
 }
 
@@ -182,6 +182,10 @@ export function DashboardView({
         <Button size="sm" variant="outline" onClick={() => onNavigate('suppressionManager')}>
           <Shield className="h-3.5 w-3.5 mr-1.5" />
           Manage Suppressions
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => onNavigate('triageDashboard')}>
+          <Crosshair className="h-3.5 w-3.5 mr-1.5" />
+          Repairability Triage
         </Button>
       </div>
     </div>

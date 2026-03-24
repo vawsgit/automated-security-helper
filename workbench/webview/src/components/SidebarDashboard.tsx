@@ -4,7 +4,7 @@ import { Separator } from '@/components/ui/separator';
 import { severityColor, dispositionColor } from '@/lib/theme-colors';
 import { getAiErrorMessage } from '@/lib/ai-errors';
 import { postMessage } from '../hooks/useVSCodeAPI';
-import { Play, List, FolderOpen, LayoutDashboard, Settings, Shield, Cpu, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
+import { Play, List, FolderOpen, LayoutDashboard, Settings, Shield, Cpu, CheckCircle2, XCircle, Loader2, Crosshair } from 'lucide-react';
 import type { ScanSummary, ScanTarget, DispositionSummary, FindingRow, Severity, Disposition, SuppressionSummary, AshYamlConfigSummary } from '../types/types';
 
 interface SidebarDashboardProps {
@@ -70,6 +70,16 @@ export function SidebarDashboard({ scans, summary, scanTargets, currentFindings,
       >
         <Shield className="h-3.5 w-3.5 mr-1.5" />
         Suppressions ({ashYamlConfig?.suppressionCount ?? 0})
+      </Button>
+
+      <Button
+        variant="outline"
+        className="w-full"
+        size="sm"
+        onClick={() => postMessage({ type: 'openTriageDashboard' })}
+      >
+        <Crosshair className="h-3.5 w-3.5 mr-1.5" />
+        Repairability Triage
       </Button>
 
       {/* Active scan indicator */}

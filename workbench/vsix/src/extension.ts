@@ -13,6 +13,7 @@ import { AshYamlService } from './services/ashYaml';
 import { AshYamlWriteService } from './services/ashYamlWrite';
 import { AdminService } from './services/admin';
 import { AiService } from './services/aiService';
+import { TriageService } from './services/triageService';
 import { detectClaudeSettings } from './services/claudeSettingsDetector';
 
 export async function activate(context: vscode.ExtensionContext) {
@@ -135,6 +136,12 @@ export async function activate(context: vscode.ExtensionContext) {
   findingsPanelManager.setAshYamlService(ashYamlService);
   findingsPanelManager.setAshYamlWriteService(ashYamlWriteService);
   findingsPanelManager.setAiService(aiService);
+
+  // Triage service (Spec 026)
+  const triageService = new TriageService(db, findingsService, aiService, ashYamlWriteService, workspaceRoot, ashChannel);
+  context.subscriptions.push(triageService);
+  findingsPanelManager.setTriageService(triageService);
+
   findingsPanelManager.setClaudeSettingsDetection(claudeSettingsDetection);
   // Admin dependencies for application info and reset
   const extensionVersion = context.extension?.packageJSON?.version ?? '0.0.0';

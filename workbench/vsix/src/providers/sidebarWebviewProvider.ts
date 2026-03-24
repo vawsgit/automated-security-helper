@@ -161,6 +161,11 @@ export class SidebarWebviewProvider implements vscode.WebviewViewProvider {
           this.findingsPanelManager.showDashboard();
         }
         break;
+      case 'openTriageDashboard':
+        if (this.findingsPanelManager) {
+          this.findingsPanelManager.showTriageDashboard();
+        }
+        break;
       case 'openSettings':
         vscode.commands.executeCommand('workbench.action.openSettings', 'ashWorkbench');
         break;

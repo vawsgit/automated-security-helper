@@ -46,6 +46,10 @@ function makeFinding(overrides: Partial<FindingRow> = {}): FindingRow {
     suppression: null,
     isCurrentlySuppressed: false,
     suppressionSource: null,
+    triageAnalysis: null,
+    triageMetadata: null,
+    triageFingerprint: null,
+    isTriageStale: false,
     ...overrides,
   };
 }

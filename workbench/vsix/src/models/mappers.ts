@@ -1,5 +1,7 @@
+import { createHash } from 'crypto';
 import type { Scan, Finding, ScanTarget as PrismaScanTarget } from '@prisma/client';
 import type { ScanSummary, FindingRow, ScanTarget, Severity, Disposition, DispositionSummary, AshSuppression, AiAnalysis, AnalysisMetadata, StoredAiAnalysis } from './types';
+import type { StoredTriageAnalysis } from './triageTypes.js';
 
 const SEVERITY_KEYS: Severity[] = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO'];
 
@@ -64,8 +66,34 @@ function parseStoredAiAnalysis(json: unknown): { analysis: AiAnalysis | null; me
   return { analysis, metadata };
 }
 
+export function parseStoredTriageAnalysis(json: unknown): StoredTriageAnalysis | null {
+  if (!json || typeof json !== 'object') { return null; }
+  const obj = json as Record<string, unknown>;
+  if (!obj.analysis || !obj.metadata || !obj.fingerprint) { return null; }
+  return obj as unknown as StoredTriageAnalysis;
+}
+
+export function computeTriageFingerprint(finding: {
+  ruleId: string;
+  file: string;
+  snippet: string | null;
+  severity: string;
+  description: string;
+}): string {
+  const input = [
+    finding.ruleId,
+    finding.file,
+    finding.snippet ?? '',
+    finding.severity,
+    finding.description,
+  ].join('|');
+  return createHash('sha256').update(input).digest('hex');
+}
+
 export function mapFindingToRow(finding: Finding, suppression?: AshSuppression): FindingRow {
   const { analysis: aiAnalysis, metadata: analysisMetadata } = parseStoredAiAnalysis(finding.aiAnalysis);
+  const storedTriage = parseStoredTriageAnalysis((finding as Record<string, unknown>).triageAnalysis);
+  const currentFingerprint = computeTriageFingerprint(finding);
   return {
     id: finding.id,
     scanId: finding.scanId,
@@ -92,5 +120,11 @@ export function mapFindingToRow(finding: Finding, suppression?: AshSuppression):
     } : null,
     isCurrentlySuppressed: !!suppression,
     suppressionSource: suppression ? 'ash_yaml' : null,
+    triageAnalysis: storedTriage?.analysis ?? null,
+    triageMetadata: storedTriage?.metadata ?? null,
+    triageFingerprint: storedTriage?.fingerprint ?? null,
+    isTriageStale: storedTriage
+      ? currentFingerprint !== storedTriage.fingerprint
+      : false,
   };
 }

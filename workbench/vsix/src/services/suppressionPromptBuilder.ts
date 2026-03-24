@@ -8,10 +8,10 @@ export interface SuppressionPromptResult {
 const SUPPRESSION_JUSTIFICATION_SCHEMA: Record<string, unknown> = {
   type: 'object',
   properties: {
-    finding: { type: 'string', description: 'Brief identification of the finding (1-2 sentences)' },
-    riskAssessment: { type: 'string', description: 'Assessment of the actual risk in this context (2-3 sentences)' },
-    rationale: { type: 'string', description: 'Why suppression is the appropriate action (2-3 sentences)' },
-    scope: { type: 'string', description: 'What this suppression covers and boundary explanation (1-2 sentences)' },
+    finding: { type: 'string', description: 'One sentence identifying the finding.' },
+    riskAssessment: { type: 'string', description: 'One to two sentences on the actual risk in this context.' },
+    rationale: { type: 'string', description: 'One to two sentences on why suppression is appropriate.' },
+    scope: { type: 'string', description: 'One sentence on what this suppression covers.' },
   },
   required: ['finding', 'riskAssessment', 'rationale', 'scope'],
 };
@@ -81,19 +81,22 @@ export function buildSuppressionPrompt(
 
   const systemPrompt = `You are an expert application security engineer writing a suppression justification for a security finding.
 
-${findingContext}
+CRITICAL CONSTRAINTS:
+- Total output MUST be 150 words or fewer across all four sections combined.
+- Do NOT use any tools. Do NOT read files or search the codebase. Answer strictly from the context provided below.
+- Be direct and specific. No filler, no preamble, no generic security advice.
+
+${findingContext}${aiAnalysisSection}
 
 ## Suppression Scope
 ${scopeInstruction}
 
 ## Your Task
 Write a structured suppression justification with four sections:
-1. **Finding**: Briefly identify the finding and its context.
-2. **Risk Assessment**: Assess the actual risk in the specific context of this code/project.
-3. **Rationale**: Explain why suppression is the appropriate action for this finding.
-4. **Scope**: Describe what this suppression covers and justify the boundary.
-
-Be specific to this codebase — do not give generic advice. Write professionally and concisely.${aiAnalysisSection}${modeInstruction}`;
+1. **Finding**: One sentence identifying the finding.
+2. **Risk Assessment**: One to two sentences on the actual risk in this specific context.
+3. **Rationale**: One to two sentences on why suppression is appropriate.
+4. **Scope**: One sentence on what this suppression covers.${modeInstruction}`;
 
   return {
     systemPrompt,

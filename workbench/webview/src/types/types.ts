@@ -79,6 +79,11 @@ export interface FindingRow {
   suppression: SuppressionData | null;
   isCurrentlySuppressed: boolean;
   suppressionSource: 'ash_yaml' | null;
+  // Triage classification (Spec 026)
+  triageAnalysis: TriageClassification | null;
+  triageMetadata: TriageMetadata | null;
+  triageFingerprint: string | null;
+  isTriageStale: boolean;
 }
 
 export interface ScanTarget {
@@ -159,6 +164,80 @@ export interface AshYamlConfig {
 }
 
 export type SuppressionScope = 'file_rule' | 'rule_everywhere' | 'file_all_rules';
+
+// Repairability Triage (Spec 026)
+
+export type TriageCategory = 'suppress' | 'easy_fix' | 'systemic';
+
+export interface TriageClassificationBase {
+  category: TriageCategory;
+  explanation: string;
+  risk: string;
+}
+
+export interface TriageSuppressClassification extends TriageClassificationBase {
+  category: 'suppress';
+  suppressionRationale: string;
+  suggestedScope: SuppressionScope;
+  suggestedJustification: string;
+}
+
+export interface TriageEasyFixClassification extends TriageClassificationBase {
+  category: 'easy_fix';
+  fixDescription: string;
+  codeBefore: string;
+  codeAfter: string;
+  filePath: string;
+  startLine: number;
+  endLine: number;
+}
+
+export interface RepairGuidance {
+  affectedAreas: string[];
+  vulnerabilityNature: string;
+  remediationApproach: string;
+  sideEffects: string[];
+  testingRecommendations: string;
+}
+
+export interface TriageSystemicClassification extends TriageClassificationBase {
+  category: 'systemic';
+  complexityRationale: string;
+  repairGuidance: RepairGuidance;
+}
+
+export type TriageClassification =
+  | TriageSuppressClassification
+  | TriageEasyFixClassification
+  | TriageSystemicClassification;
+
+export interface TriageMetadata {
+  classifiedAt: string;
+  modelId: string;
+  costUsd: number;
+}
+
+export interface StoredTriageAnalysis {
+  analysis: TriageClassification;
+  metadata: TriageMetadata;
+  fingerprint: string;
+}
+
+export interface TriageSeverityBreakdown {
+  total: number;
+  suppress: number;
+  easyFix: number;
+  systemic: number;
+  unanalyzed: number;
+  addressed: number;
+}
+
+export interface TriageSummary {
+  bySeverity: Record<Severity, TriageSeverityBreakdown>;
+  totalFindings: number;
+  totalAnalyzed: number;
+  totalUnanalyzed: number;
+}
 
 export interface SuppressionInput {
   findingId: string;

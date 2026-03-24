@@ -465,10 +465,13 @@ export class AiService implements vscode.Disposable {
     const { query } = await import('@anthropic-ai/claude-agent-sdk');
     const { buildQueryOptions } = await import('./claudeAgentProvider.js');
 
+    const abortController = new AbortController();
+    const timeout = setTimeout(() => abortController.abort(), 60_000);
+
     const options: Record<string, unknown> = {
       ...buildQueryOptions(config),
-      maxTurns: 1,
-      maxBudgetUsd: 0.05,
+      abortController,
+      cwd: this.workspaceRoot,
       permissionMode: 'dontAsk',
       allowedTools: [] as string[],
       outputFormat: { type: 'json_schema', schema },
@@ -476,26 +479,34 @@ export class AiService implements vscode.Disposable {
 
     type SDKMessage = { type: string; subtype?: string; structured_output?: unknown; errors?: string[]; [key: string]: unknown };
 
-    const messages = query({
-      prompt: systemPrompt,
-      options: options as never,
-    });
+    try {
+      this.log(`Starting SDK query for suppression message (cwd=${this.workspaceRoot})`);
+      const messages = query({
+        prompt: systemPrompt,
+        options: options as never,
+      });
 
-    for await (const raw of messages) {
-      const message = raw as SDKMessage;
-      if (message.type === 'result') {
-        if (message.subtype === 'success' && message.structured_output && typeof message.structured_output === 'object') {
-          const sections = message.structured_output as { finding: string; riskAssessment: string; rationale: string; scope: string };
-          const assembled = assembleMessage(sections);
-          this.log(`Suppression message generated for ${findingId}`);
-          return { findingId, message: assembled, sections };
+      for await (const raw of messages) {
+        const message = raw as SDKMessage;
+        this.log(`SDK message received: type=${message.type}, subtype=${message.subtype ?? 'n/a'}`);
+        if (message.type === 'result') {
+          if (message.subtype === 'success' && message.structured_output && typeof message.structured_output === 'object') {
+            const sections = message.structured_output as { finding: string; riskAssessment: string; rationale: string; scope: string };
+            const assembled = assembleMessage(sections);
+            this.log(`Suppression message generated for ${findingId}`);
+            return { findingId, message: assembled, sections };
+          }
+          const errors = Array.isArray(message.errors) ? message.errors : [];
+          const errorMsg = errors.length > 0 ? errors.join('; ') : `Generation failed — subtype=${message.subtype}, no structured output returned`;
+          this.log(`Suppression generation error: ${errorMsg}`);
+          throw new Error(errorMsg);
         }
-        const errorMsg = Array.isArray(message.errors) ? message.errors.join('; ') : 'Generation failed — no structured output returned';
-        throw new Error(errorMsg);
       }
-    }
 
-    throw new Error('Generation failed — no result received from AI');
+      throw new Error('Generation failed — no result received from AI');
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
   cancelBatchAnalysis(scanId: string): void {

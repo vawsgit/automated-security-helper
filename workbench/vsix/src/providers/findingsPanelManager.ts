@@ -12,6 +12,7 @@ import type { AshYamlWriteService } from '../services/ashYamlWrite';
 import type { PrismaClient } from '@prisma/client';
 import { AdminService } from '../services/admin';
 import type { AiService } from '../services/aiService';
+import type { TriageService } from '../services/triageService';
 import type { ClaudeSettingsDetection } from '../services/claudeSettingsDetector';
 
 export class FindingsPanelManager {
@@ -24,6 +25,7 @@ export class FindingsPanelManager {
   private ashYamlService: AshYamlService | undefined;
   private ashYamlWriteService: AshYamlWriteService | undefined;
   private aiService: AiService | undefined;
+  private triageService: TriageService | undefined;
   private claudeSettingsDetection: ClaudeSettingsDetection | undefined;
   private adminDeps: { db: PrismaClient; extensionVersion: string; storagePath: string } | undefined;
 
@@ -61,6 +63,10 @@ export class FindingsPanelManager {
 
   setAiService(service: AiService): void {
     this.aiService = service;
+  }
+
+  setTriageService(service: TriageService): void {
+    this.triageService = service;
   }
 
   setClaudeSettingsDetection(detection: ClaudeSettingsDetection): void {
@@ -204,6 +210,28 @@ export class FindingsPanelManager {
       );
       this.postFindingsUpdate(this.currentScanId, findings);
     }
+  }
+
+  public showTriageDashboard(): void {
+    this.currentScanId = '';
+    const isNew = this.ensurePanel();
+    if (!isNew) {
+      this.panel!.webview.postMessage({
+        type: 'init',
+        payload: { context: 'editorPanel', scanId: '' },
+      });
+    }
+    // Send triage summary after panel is ready
+    const delay = isNew ? 500 : 50;
+    setTimeout(async () => {
+      if (this.triageService) {
+        const summary = await this.triageService.getTriageSummary();
+        this.panel?.webview.postMessage({
+          type: 'triageSummaryUpdate',
+          payload: { summary },
+        });
+      }
+    }, delay);
   }
 
   public showSuppressionManager(): void {
@@ -440,9 +468,14 @@ export class FindingsPanelManager {
         break;
       }
       case 'suppressFinding': {
+        console.log('[ASH] suppressFinding received:', JSON.stringify(message.payload));
         if (this.ashYamlWriteService) {
           const result = await this.ashYamlWriteService.addSuppression(message.payload);
+          console.log('[ASH] suppressFinding result:', JSON.stringify(result));
           this.panel?.webview.postMessage({ type: 'suppressionResult', payload: result });
+        } else {
+          console.log('[ASH] suppressFinding: ashYamlWriteService not available');
+          this.panel?.webview.postMessage({ type: 'suppressionResult', payload: { success: false, findingId: message.payload.findingId, action: 'suppress', error: 'Suppression service not initialized.' } });
         }
         break;
       }
@@ -648,6 +681,133 @@ export class FindingsPanelManager {
                 message: err instanceof Error ? err.message : 'Refinement failed',
               },
             });
+          }
+        }
+        break;
+      }
+      // Repairability Triage (Spec 026)
+      case 'openTriageDashboard': {
+        this.showTriageDashboard();
+        break;
+      }
+      case 'requestTriageSummary': {
+        if (this.triageService) {
+          const summary = await this.triageService.getTriageSummary();
+          this.panel?.webview.postMessage({ type: 'triageSummaryUpdate', payload: { summary } });
+        }
+        break;
+      }
+      case 'startTriageClassification': {
+        if (this.triageService) {
+          await this.triageService.classifyBatch((event) => {
+            switch (event.type) {
+              case 'started':
+                this.panel?.webview.postMessage({
+                  type: 'triageClassificationStarted',
+                  payload: { totalFindings: event.totalFindings, findingIds: event.findingIds },
+                });
+                break;
+              case 'progress':
+                this.panel?.webview.postMessage({
+                  type: 'triageClassificationProgress',
+                  payload: { currentIndex: event.currentIndex, totalFindings: event.totalFindings, currentFindingId: event.currentFindingId, status: event.status, message: event.message },
+                });
+                break;
+              case 'result':
+                this.panel?.webview.postMessage({
+                  type: 'triageClassificationResult',
+                  payload: { findingId: event.findingId, analysis: event.analysis, metadata: event.metadata },
+                });
+                break;
+              case 'error':
+                this.panel?.webview.postMessage({
+                  type: 'triageClassificationError',
+                  payload: { findingId: event.findingId, errorType: event.errorType, message: event.message },
+                });
+                break;
+              case 'complete':
+                this.panel?.webview.postMessage({
+                  type: 'triageClassificationComplete',
+                  payload: { analyzedCount: event.analyzedCount, failedCount: event.failedCount, skippedCount: event.skippedCount, status: event.status },
+                });
+                break;
+            }
+          });
+          // Post updated summary after classification
+          const summary = await this.triageService.getTriageSummary();
+          this.panel?.webview.postMessage({ type: 'triageSummaryUpdate', payload: { summary } });
+        }
+        break;
+      }
+      case 'retryTriageClassification': {
+        if (this.triageService) {
+          await this.triageService.classifyFinding(message.payload.findingId, (event) => {
+            if (event.type === 'result') {
+              this.panel?.webview.postMessage({
+                type: 'triageClassificationResult',
+                payload: { findingId: event.findingId, analysis: event.analysis, metadata: event.metadata },
+              });
+            } else if (event.type === 'error') {
+              this.panel?.webview.postMessage({
+                type: 'triageClassificationError',
+                payload: { findingId: event.findingId, errorType: event.errorType, message: event.message },
+              });
+            }
+          });
+        }
+        break;
+      }
+      case 'cancelTriageClassification': {
+        if (this.triageService) {
+          this.triageService.cancelBatch();
+        }
+        break;
+      }
+      case 'applyTriageSuppression': {
+        if (this.triageService) {
+          const result = await this.triageService.applyTriageSuppression(message.payload.findingId);
+          if (result.success) {
+            this.panel?.webview.postMessage({
+              type: 'triageSuppressed',
+              payload: { findingId: message.payload.findingId, disposition: 'SUPPRESS' },
+            });
+            const summary = await this.triageService.getTriageSummary();
+            this.panel?.webview.postMessage({ type: 'triageSummaryUpdate', payload: { summary } });
+          } else {
+            this.panel?.webview.postMessage({
+              type: 'triageSuppressionError',
+              payload: { findingId: message.payload.findingId, errorType: result.errorType, message: result.message },
+            });
+          }
+        }
+        break;
+      }
+      case 'applyTriageFix': {
+        if (this.triageService) {
+          const result = await this.triageService.applyTriageFix(message.payload.findingId);
+          if (result.success) {
+            this.panel?.webview.postMessage({
+              type: 'triageFixApplied',
+              payload: { findingId: message.payload.findingId, filePath: result.filePath, disposition: 'FIX' },
+            });
+            const summary = await this.triageService.getTriageSummary();
+            this.panel?.webview.postMessage({ type: 'triageSummaryUpdate', payload: { summary } });
+          } else {
+            this.panel?.webview.postMessage({
+              type: 'triageFixError',
+              payload: { findingId: message.payload.findingId, errorType: result.errorType, message: result.message },
+            });
+          }
+        }
+        break;
+      }
+      case 'requestRepairGuidance': {
+        // Guidance is stored in triageAnalysis and already sent via FindingRow
+        // This message exists for future optimization if full guidance exceeds standard payload
+        if (this.findingsService) {
+          const detail = await this.findingsService.getFindingDetail(message.payload.findingId);
+          if (detail) {
+            this.panel?.webview.postMessage({ type: 'findingDetail', payload: detail });
           }
         }
         break;

@@ -1,3 +1,5 @@
+import type { TriageClassification, TriageMetadata } from './triageTypes.js';
+
 export type ScanStatus = 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
 
 export type Severity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'INFO';
@@ -79,6 +81,11 @@ export interface FindingRow {
   suppression: SuppressionData | null;
   isCurrentlySuppressed: boolean;
   suppressionSource: 'ash_yaml' | null;
+  // Triage classification (Spec 026)
+  triageAnalysis: TriageClassification | null;
+  triageMetadata: TriageMetadata | null;
+  triageFingerprint: string | null;
+  isTriageStale: boolean;
 }
 
 export interface ScanTarget {

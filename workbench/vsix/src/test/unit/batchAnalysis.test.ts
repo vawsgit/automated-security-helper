@@ -60,6 +60,10 @@ function makeFinding(id: string, hasAnalysis = false): FindingRow {
     suppression: null,
     isCurrentlySuppressed: false,
     suppressionSource: null,
+    triageAnalysis: null,
+    triageMetadata: null,
+    triageFingerprint: null,
+    isTriageStale: false,
   };
 }
 
